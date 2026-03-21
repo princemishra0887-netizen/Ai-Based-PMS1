@@ -2,6 +2,9 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2 } from "lucide-react";
 
+// Import OTPPage component - make sure this file exists
+import OTPPage from "./loginOTP"; // Adjust path as needed
+
 const Login = () => {
   const [page, setPage] = useState("login"); // "login" | "otp"
   const [method, setMethod] = useState("email");

@@ -100,7 +100,7 @@ const SecureIdRegistration = () => {
       </div>
     ))}
   </div>
-);
+ );
   };
 
   return (

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, ArrowLeft } from "lucide-react";
 
 // ── OTP Page ──────────────────────────────────────────────────────────────────
-const OTPPage = ({ method, destination, onBack }) => {
+ const OTPPage = ({ method, destination, onBack }) => {
   const [otp, setOtp] = useState(Array(6).fill(""));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -147,3 +147,4 @@ const OTPPage = ({ method, destination, onBack }) => {
   );
 };
 
+export default OTPPage
