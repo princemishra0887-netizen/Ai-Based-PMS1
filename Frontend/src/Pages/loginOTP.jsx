@@ -1,9 +1,7 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, ArrowLeft } from "lucide-react";
 
-// ── OTP Page ──────────────────────────────────────────────────────────────────
- const OTPPage = ({ method, destination, onBack }) => {
+const OTPPage = ({ method, destination, onBack }) => {
   const [otp, setOtp] = useState(Array(6).fill(""));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -63,40 +61,49 @@ import { Loader2, ArrowLeft } from "lucide-react";
       transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
       className="w-full max-w-[400px]"
     >
+      {/* Logo */}
       <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-[10px] bg-primary">
-          <span className="text-lg font-bold text-primary-foreground">P</span>
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 shadow-lg">
+          <span className="text-xl font-bold text-white">🅿</span>
         </div>
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
+        <h1 className="font-['Bebas_Neue'] text-3xl tracking-tight text-white">
           Verify your identity
         </h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
+        <p className="mt-1.5 text-sm text-gray-400">
           One last step — verify it's really you.
         </p>
       </div>
 
-      <div
-        className="rounded-[12px] bg-card p-8"
-        style={{
-          boxShadow:
-            "0 0 0 1px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.02), 0 12px 24px -4px rgba(0,0,0,0.08)",
-        }}
-      >
+      {/* Card */}
+      <div className="rounded-2xl bg-gray-900/50 backdrop-blur-sm border border-white/10 p-8">
         <button
           type="button"
           onClick={onBack}
-          className="mb-5 flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          className="mb-5 flex items-center gap-1.5 text-xs text-gray-400 transition-colors hover:text-orange-500 group"
         >
-          <ArrowLeft className="h-3.5 w-3.5" /> Back
+          <svg
+            className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"
+            />
+          </svg>
+          Back
         </button>
 
-        <p className="mb-5 text-center text-sm text-muted-foreground">
+        <p className="mb-6 text-center text-sm text-gray-400">
           Code sent to{" "}
-          <span className="font-medium text-foreground">{destination}</span>
+          <span className="font-medium text-orange-500">{destination}</span>
         </p>
 
         {/* OTP Inputs */}
-        <div className="mb-4 flex justify-center gap-2.5">
+        <div className="mb-6 flex justify-center gap-2.5">
           {otp.map((digit, idx) => (
             <input
               key={idx}
@@ -107,44 +114,59 @@ import { Loader2, ArrowLeft } from "lucide-react";
               value={digit}
               onChange={(e) => handleChange(idx, e.target.value)}
               onKeyDown={(e) => handleKeyDown(idx, e)}
-              className={`h-14 w-12 rounded-[10px] border-0 text-center font-mono text-xl font-medium outline-none shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] transition-all duration-150 focus:ring-2 focus:ring-primary/20 focus:scale-105 ${
+              className={`h-14 w-12 rounded-xl text-center font-mono text-xl font-medium transition-all duration-200 focus:scale-105 focus:outline-none focus:ring-2 focus:ring-orange-500/30 ${
                 digit
-                  ? "bg-primary text-primary-foreground shadow-[0_2px_8px_rgba(0,0,0,0.18)]"
-                  : "bg-muted text-foreground"
+                  ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg"
+                  : "bg-gray-800/50 border border-white/10 text-white"
               }`}
             />
           ))}
         </div>
 
-        {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
+        {error && (
+          <motion.p
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 text-sm text-red-400 text-center"
+          >
+            {error}
+          </motion.p>
+        )}
 
         <button
           type="button"
           onClick={handleSignIn}
           disabled={!allFilled || loading}
-          className="flex h-10 w-full items-center justify-center rounded-[8px] bg-primary text-sm font-medium text-primary-foreground shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all duration-200 hover:brightness-90 active:scale-[0.98] disabled:opacity-70"
+          className="relative h-11 w-full rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-sm font-semibold text-white shadow-lg transition-all hover:shadow-orange-500/25 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
         >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign In"}
+          {loading ? (
+            <div className="flex items-center justify-center gap-2">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
+              <span>Verifying...</span>
+            </div>
+          ) : (
+            "Verify & Sign In"
+          )}
         </button>
 
-        <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+        <div className="mt-5 flex items-center justify-center gap-1.5 text-xs text-gray-400">
           <span>Didn't receive it?</span>
           <button
             type="button"
             onClick={handleResend}
             disabled={resendSeconds > 0}
-            className="font-semibold text-foreground transition-opacity disabled:opacity-40"
+            className="font-semibold text-orange-500 transition-all hover:text-orange-400 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Resend {resendSeconds > 0 && `(${resendSeconds}s)`}
           </button>
         </div>
       </div>
 
-      <p className="mt-6 text-center text-xs text-muted-foreground">
-        © 2026 ParkAI. All rights reserved.
+      <p className="mt-6 text-center text-xs text-gray-500">
+        © 2026 ParkEase. All rights reserved.
       </p>
     </motion.div>
   );
 };
 
-export default OTPPage
+export default OTPPage;

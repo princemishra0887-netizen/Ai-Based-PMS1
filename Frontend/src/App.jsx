@@ -12,6 +12,6 @@ import ParkEaseAuthChoice from "./Pages/ParkEaseAuth";
 import ParkEaseSecureRegistration from "./Pages/getStarted";
 
 
-const Index = () => <ParkEaseAuthChoice />;
+const Index = () => <Login />;
 
 export default Index;

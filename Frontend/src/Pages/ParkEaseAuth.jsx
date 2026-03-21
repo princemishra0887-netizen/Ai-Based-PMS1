@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 
+
+
 const ParkEaseAuthChoice = ({ onChoice }) => {
   const [toast, setToast] = useState({ show: false, message: "" });
 
@@ -33,9 +35,7 @@ const ParkEaseAuthChoice = ({ onChoice }) => {
     };
     animate();
 
-    const interactiveElements = document.querySelectorAll(
-      "button, a, .choice-card"
-    );
+    const interactiveElements = document.querySelectorAll("button");
     const addHover = () => document.body.classList.add("hov");
     const removeHover = () => document.body.classList.remove("hov");
 
@@ -54,10 +54,10 @@ const ParkEaseAuthChoice = ({ onChoice }) => {
     };
   }, []);
 
-//   const showToast = (message) => {
-//     setToast({ show: true, message });
-//     setTimeout(() => setToast({ show: false, message: "" }), 3000);
-//   };
+  const showToast = (message) => {
+    setToast({ show: true, message });
+    setTimeout(() => setToast({ show: false, message: "" }), 3000);
+  };
 
   const handleChoice = (choice) => {
     if (choice === "signup") {
@@ -66,7 +66,7 @@ const ParkEaseAuthChoice = ({ onChoice }) => {
         if (onChoice) onChoice("signup");
       }, 500);
     } else {
-      showToast("👋 Welcome back! Let's sign you in.");
+      showToast("👋 Welcome back!");
       setTimeout(() => {
         if (onChoice) onChoice("login");
       }, 500);
@@ -129,113 +129,83 @@ const ParkEaseAuthChoice = ({ onChoice }) => {
 
         {/* Main Content */}
         <div className="flex-1 flex items-center justify-center p-6">
-          <div className="max-w-4xl w-full">
+          <div className="max-w-2xl w-full">
             {/* Hero Section */}
             <div className="text-center mb-12">
-              <div className="inline-block p-3 bg-orange-500/10 rounded-2xl mb-4">
-                <span className="text-4xl">🅿️</span>
+              <div className="inline-block p-4 bg-orange-500/10 rounded-2xl mb-6">
+                <span className="text-5xl">🅿️</span>
               </div>
-              <h1 className="font-['Bebas_Neue'] text-5xl md:text-7xl leading-tight mb-4">
+              <h1 className="font-['Bebas_Neue'] text-5xl md:text-6xl leading-tight mb-4">
                 Welcome to{" "}
                 <span className="text-orange-500 italic font-['Instrument_Serif']">
                   ParkEase
                 </span>
               </h1>
-              <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+              <p className="text-gray-400 text-base max-w-md mx-auto">
                 India's fastest growing parking platform. Find spots, list your
                 property, and earn effortlessly.
               </p>
             </div>
 
-            {/* Choice Cards */}
-            <div className="grid md:grid-cols-2 gap-6 mb-8">
-              {/* Sign Up Card */}
-              <div
-                className="group cursor-pointer transition-all duration-300 hover:transform hover:-translate-y-2"
+            {/* Two Buttons Section */}
+            <div className="space-y-4">
+              {/* Sign Up Button */}
+              <button
                 onClick={() => handleChoice("signup")}
+                className="group w-full relative overflow-hidden rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 p-[2px] hover:shadow-lg transition-all duration-300"
               >
-                <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 backdrop-blur-sm border border-white/10 rounded-2xl p-8 hover:border-orange-500/50 transition-all duration-300">
-                  <div className="text-center">
-                    <div className="text-6xl mb-4 group-hover:scale-110 transition-transform duration-300">
-                      🚀
+                <div className="relative rounded-2xl bg-black/90 backdrop-blur-sm px-8 py-6 transition-all duration-300 group-hover:bg-black/70">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="text-4xl group-hover:scale-110 transition-transform duration-300">
+                        🚀
+                      </div>
+                      <div className="text-left">
+                        <h2 className="font-['Bebas_Neue'] text-2xl text-white">
+                          Create Account
+                        </h2>
+                        <p className="text-gray-400 text-sm">
+                          New here? Join ParkEase today
+                        </p>
+                      </div>
                     </div>
-                    <h2 className="font-['Bebas_Neue'] text-3xl mb-2">
-                      Create Account
-                    </h2>
-                    <p className="text-gray-400 text-sm mb-6">
-                      New to ParkEase? Join us and start your parking journey
-                    </p>
-                    <div className="inline-flex items-center gap-2 text-orange-500 font-semibold group-hover:gap-3 transition-all">
-                      <span>Sign Up Now</span>
-                      <span>→</span>
-                    </div>
-                  </div>
-
-                  {/* Features List */}
-                  <div className="mt-6 pt-6 border-t border-white/10">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <span className="text-green-500">✓</span>
-                        <span>Free account setup</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <span className="text-green-500">✓</span>
-                        <span>₹50 welcome credit</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <span className="text-green-500">✓</span>
-                        <span>Access to 1000+ spots</span>
-                      </div>
+                    <div className="text-orange-500 text-2xl group-hover:translate-x-2 transition-transform duration-300">
+                      →
                     </div>
                   </div>
                 </div>
-              </div>
+              </button>
 
-              {/* Log In Card */}
-              <div
-                className="group cursor-pointer transition-all duration-300 hover:transform hover:-translate-y-2"
+              {/* Login Button */}
+              <button
                 onClick={() => handleChoice("login")}
+                className="group w-full relative overflow-hidden rounded-2xl border border-white/10 hover:border-orange-500/50 transition-all duration-300"
               >
-                <div className="bg-gradient-to-br from-gray-900/80 to-gray-800/80 backdrop-blur-sm border border-white/10 rounded-2xl p-8 hover:border-orange-500/50 transition-all duration-300">
-                  <div className="text-center">
-                    <div className="text-6xl mb-4 group-hover:scale-110 transition-transform duration-300">
-                      👋
+                <div className="rounded-2xl bg-gray-900/50 backdrop-blur-sm px-8 py-6 transition-all duration-300 hover:bg-gray-900/70">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="text-4xl group-hover:scale-110 transition-transform duration-300">
+                        👋
+                      </div>
+                      <div className="text-left">
+                        <h2 className="font-['Bebas_Neue'] text-2xl text-white">
+                          Sign In
+                        </h2>
+                        <p className="text-gray-400 text-sm">
+                          Already have an account? Welcome back
+                        </p>
+                      </div>
                     </div>
-                    <h2 className="font-['Bebas_Neue'] text-3xl mb-2">
-                      Sign In
-                    </h2>
-                    <p className="text-gray-400 text-sm mb-6">
-                      Already have an account? Welcome back!
-                    </p>
-                    <div className="inline-flex items-center gap-2 text-orange-500 font-semibold group-hover:gap-3 transition-all">
-                      <span>Log In</span>
-                      <span>→</span>
-                    </div>
-                  </div>
-
-                  {/* Features List */}
-                  <div className="mt-6 pt-6 border-t border-white/10">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <span className="text-orange-500">⚡</span>
-                        <span>Instant access</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <span className="text-orange-500">🔒</span>
-                        <span>Secure login</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <span className="text-orange-500">📱</span>
-                        <span>Saved preferences</span>
-                      </div>
+                    <div className="text-orange-500 text-2xl group-hover:translate-x-2 transition-transform duration-300">
+                      →
                     </div>
                   </div>
                 </div>
-              </div>
+              </button>
             </div>
 
             {/* Trust Badges */}
-            <div className="text-center">
+            <div className="mt-12 text-center">
               <div className="flex flex-wrap justify-center gap-6 text-xs text-gray-500">
                 <div className="flex items-center gap-1">
                   <span className="text-yellow-500">★</span>
@@ -259,8 +229,7 @@ const ParkEaseAuthChoice = ({ onChoice }) => {
             {/* Demo Notice */}
             <div className="mt-8 text-center">
               <p className="text-xs text-gray-600">
-                ⚡ Demo Mode: Both options will redirect to the registration
-                flow
+                ⚡ Demo Mode: Both options will proceed to registration flow
               </p>
             </div>
           </div>
@@ -278,8 +247,7 @@ const ParkEaseAuthChoice = ({ onChoice }) => {
         </div>
       )}
 
-      {/* Animation Styles */}
-      <style jsx>{`
+      <style>{`
         @keyframes slide-up {
           from {
             opacity: 0;
