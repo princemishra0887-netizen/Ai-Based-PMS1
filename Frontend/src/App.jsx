@@ -7,11 +7,12 @@ import LandOwner from "./Pages/LandOwnerDashBoard";
 // import './App.css';
 //  import React, { useState, useEffect, useRef } from "react";
 import ParkEaseAuthChoice from "./Pages/ParkEaseAuth";
+import WhoAmI from "./Pages/WhoAmI";
 
 // import OTPPage from "./Pages/loginOTP"
 import ParkEaseSecureRegistration from "./Pages/getStarted";
 
 
-const Index = () => <Login />;
+const Index = () => <WhoAmI/>;
 
 export default Index;
