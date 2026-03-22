@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 
 
-
 const ParkEaseAuthChoice = ({ onChoice }) => {
   const [toast, setToast] = useState({ show: false, message: "" });
 
