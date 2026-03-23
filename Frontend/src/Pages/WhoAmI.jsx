@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 
-const WhoAmI = ({ onSelectRole }) => {
+const WhoAmI = ({ onRoleSelect, onNavigateToSignIn }) => {
   const [selectedRole, setSelectedRole] = useState(null);
-  const [hoveredRole, setHoveredRole] = useState(null);
+  const [toast, setToast] = useState({ show: false, message: "" });
 
-  // Custom cursor effect for ParkEase theme
+  // Custom cursor effect
   useEffect(() => {
     const cur = document.getElementById("cur");
     const curR = document.getElementById("cur-r");
@@ -35,7 +34,9 @@ const WhoAmI = ({ onSelectRole }) => {
     };
     animate();
 
-    const interactiveElements = document.querySelectorAll("button, a");
+    const interactiveElements = document.querySelectorAll(
+      "button, a, .role-card, input, .checkbox-custom"
+    );
     const addHover = () => document.body.classList.add("hov");
     const removeHover = () => document.body.classList.remove("hov");
 
@@ -54,13 +55,17 @@ const WhoAmI = ({ onSelectRole }) => {
     };
   }, []);
 
-  const handleRoleSelect = (role) => {
-    setSelectedRole(role);
-    setTimeout(() => {
-      if (onSelectRole) {
-        onSelectRole(role);
-      }
-    }, 300);
+  const showToast = (message) => {
+    setToast({ show: true, message });
+    setTimeout(() => setToast({ show: false, message: "" }), 3000);
+  };
+
+  const handleContinue = () => {
+    if (!selectedRole) {
+      showToast("Please select a role");
+      return;
+    }
+    onRoleSelect(selectedRole);
   };
 
   return (
@@ -77,222 +82,137 @@ const WhoAmI = ({ onSelectRole }) => {
         style={{ transform: "translate(-50%, -50%)" }}
       />
 
-      {/* Background Elements */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(249,115,22,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(249,115,22,.035) 1px, transparent 1px)",
-            backgroundSize: "56px 56px",
-            maskImage:
-              "radial-gradient(ellipse 90% 90% at 50% 50%, black 20%, transparent 100%)",
-          }}
-        />
-        <div
-          className="absolute inset-0 opacity-[0.025]"
-          style={{
-            backgroundImage:
-              "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
-          }}
-        />
-      </div>
-
-      <div className="relative z-10 flex min-h-screen items-center justify-center bg-black px-4">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key="whoami"
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-            className="w-full max-w-[500px]"
-          >
-            {/* Logo */}
-            <div className="mb-8 text-center">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 shadow-lg">
-                <span className="text-xl font-bold text-white">🅿</span>
-              </div>
-              <h1 className="font-['Bebas_Neue'] text-4xl tracking-tight text-white">
-                Who Am I?
-              </h1>
-              <p className="mt-1.5 text-sm text-gray-400">
-                Please select your role to continue
-              </p>
+      <div className="relative z-10 min-h-screen flex flex-col bg-black text-gray-200">
+        <nav className="flex items-center justify-between px-6 md:px-12 py-5 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 flex items-center justify-center text-white font-bold">
+              🅿
             </div>
+            <span className="font-['Bebas_Neue'] text-2xl tracking-wider">
+              ParkEase
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <div className="w-7 h-1.5 rounded-full bg-orange-500"></div>
+            <div className="w-7 h-1.5 rounded-full bg-white/10"></div>
+            <div className="w-7 h-1.5 rounded-full bg-white/10"></div>
+          </div>
+          <button className="text-gray-500 text-sm border border-white/10 px-4 py-1.5 rounded-md hover:text-white transition-colors">
+            Back
+          </button>
+        </nav>
 
-            {/* Card */}
-            <div className="rounded-2xl bg-gray-900/50 backdrop-blur-sm border border-white/10 p-8">
-              <div className="space-y-4">
-                {/* User Card */}
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleRoleSelect("user")}
-                  onMouseEnter={() => setHoveredRole("user")}
-                  onMouseLeave={() => setHoveredRole(null)}
-                  className={`w-full p-6 rounded-xl border-2 transition-all duration-300 text-left ${
-                    selectedRole === "user"
-                      ? "border-orange-500 bg-gradient-to-r from-orange-500/20 to-orange-600/20"
-                      : "border-white/10 bg-gray-800/30 hover:border-orange-500/50"
-                  }`}
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0">
-                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-3xl transition-all ${
-                        hoveredRole === "user" || selectedRole === "user"
-                          ? "bg-gradient-to-r from-orange-500 to-orange-600 shadow-lg"
-                          : "bg-gray-800/50 border border-white/10"
-                      }`}>
-                        🚗
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-['Bebas_Neue'] text-2xl text-white mb-1">
-                        I'm a User
-                      </h3>
-                      <p className="text-sm text-gray-400 mb-2">
-                        Find and book parking spots near your destination
-                      </p>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        <span className="text-xs bg-orange-500/10 text-orange-500 px-2 py-1 rounded-full">
-                          🔍 Browse & Book
-                        </span>
-                        <span className="text-xs bg-orange-500/10 text-orange-500 px-2 py-1 rounded-full">
-                          💳 Quick Payments
-                        </span>
-                        <span className="text-xs bg-orange-500/10 text-orange-500 px-2 py-1 rounded-full">
-                          ⭐ Rate Spots
-                        </span>
-                      </div>
-                    </div>
-                    {selectedRole === "user" && (
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="flex-shrink-0 w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center"
-                      >
-                        <svg
-                          className="w-4 h-4 text-white"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={3}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      </motion.div>
-                    )}
-                  </div>
-                </motion.button>
-
-                {/* Land Owner Card */}
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleRoleSelect("owner")}
-                  onMouseEnter={() => setHoveredRole("owner")}
-                  onMouseLeave={() => setHoveredRole(null)}
-                  className={`w-full p-6 rounded-xl border-2 transition-all duration-300 text-left ${
-                    selectedRole === "owner"
-                      ? "border-orange-500 bg-gradient-to-r from-orange-500/20 to-orange-600/20"
-                      : "border-white/10 bg-gray-800/30 hover:border-orange-500/50"
-                  }`}
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0">
-                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-3xl transition-all ${
-                        hoveredRole === "owner" || selectedRole === "owner"
-                          ? "bg-gradient-to-r from-orange-500 to-orange-600 shadow-lg"
-                          : "bg-gray-800/50 border border-white/10"
-                      }`}>
-                        🏠
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-['Bebas_Neue'] text-2xl text-white mb-1">
-                        I'm a Land Owner
-                      </h3>
-                      <p className="text-sm text-gray-400 mb-2">
-                        List your unused parking spaces and earn passive income
-                      </p>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        <span className="text-xs bg-orange-500/10 text-orange-500 px-2 py-1 rounded-full">
-                          💰 List & Earn
-                        </span>
-                        <span className="text-xs bg-orange-500/10 text-orange-500 px-2 py-1 rounded-full">
-                          📊 Track Earnings
-                        </span>
-                        <span className="text-xs bg-orange-500/10 text-orange-500 px-2 py-1 rounded-full">
-                          🔒 Secure Bookings
-                        </span>
-                      </div>
-                    </div>
-                    {selectedRole === "owner" && (
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="flex-shrink-0 w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center"
-                      >
-                        <svg
-                          className="w-4 h-4 text-white"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={3}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      </motion.div>
-                    )}
-                  </div>
-                </motion.button>
-              </div>
-
-              {/* Continue Button */}
-              <motion.button
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: selectedRole ? 1 : 0.5, y: 0 }}
-                onClick={() => selectedRole && handleRoleSelect(selectedRole)}
-                disabled={!selectedRole}
-                className={`mt-8 w-full h-12 rounded-xl text-sm font-semibold text-white shadow-lg transition-all ${
-                  selectedRole
-                    ? "bg-gradient-to-r from-orange-500 to-orange-600 hover:shadow-orange-500/25 hover:scale-[1.02] cursor-pointer"
-                    : "bg-gray-700 cursor-not-allowed"
-                }`}
-              >
-                Continue as {selectedRole === "user" ? "User" : selectedRole === "owner" ? "Land Owner" : "..."} →
-              </motion.button>
-
-              {/* Help Text */}
-              <p className="mt-4 text-center text-xs text-gray-500">
-                Need help deciding?{" "}
-                <button
-                  type="button"
-                  className="text-orange-500 hover:underline"
-                  onClick={() => {
-                    alert("Users find and book parking spots. Land Owners list their parking spaces to earn money. Both roles can access the platform with different features.");
-                  }}
-                >
-                  Learn more
-                </button>
-              </p>
-            </div>
-
-            <p className="mt-6 text-center text-xs text-gray-500">
-              © 2026 ParkEase. All rights reserved.
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="max-w-2xl w-full">
+            <p className="text-orange-500 text-xs tracking-wider mb-2">
+              STEP 1 OF 3 — CHOOSE YOUR ROLE
             </p>
-          </motion.div>
-        </AnimatePresence>
+            <h1 className="font-['Bebas_Neue'] text-5xl md:text-7xl leading-none">
+              How Will You{" "}
+              <span className="text-orange-500 italic font-['Instrument_Serif']">
+                Use
+              </span>
+              <br />
+              ParkEase?
+            </h1>
+            <p className="text-gray-500 mt-2 mb-6">
+              Tell us who you are so we can personalise your experience
+              perfectly.
+            </p>
+
+            <div className="grid md:grid-cols-2 gap-4 mb-8">
+              {/* Driver Card */}
+              <div
+                className={`p-6 rounded-2xl cursor-pointer transition-all relative border-2 ${
+                  selectedRole === "driver"
+                    ? "border-orange-500 bg-orange-500/5"
+                    : "border-white/10 bg-gray-900/50 hover:border-orange-500/30"
+                }`}
+                onClick={() => setSelectedRole("driver")}
+              >
+                <div
+                  className={`absolute top-3 right-3 w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold transition-opacity ${
+                    selectedRole === "driver" ? "opacity-100" : "opacity-0"
+                  }`}
+                >
+                  ✓
+                </div>
+                <span className="text-4xl mb-3 block">🚗</span>
+                <div className="font-['Bebas_Neue'] text-2xl">
+                  I'm a Driver
+                </div>
+                <p className="text-gray-500 text-sm">
+                  Find and book parking near my destination quickly.
+                </p>
+                <div className="mt-3 inline-block bg-orange-500/10 border border-orange-500/20 rounded-full px-2 py-1 text-xs text-orange-500">
+                  🔍 Browse & Book
+                </div>
+              </div>
+
+              {/* Owner Card */}
+              <div
+                className={`p-6 rounded-2xl cursor-pointer transition-all relative border-2 ${
+                  selectedRole === "owner"
+                    ? "border-orange-500 bg-orange-500/5"
+                    : "border-white/10 bg-gray-900/50 hover:border-orange-500/30"
+                }`}
+                onClick={() => setSelectedRole("owner")}
+              >
+                <div
+                  className={`absolute top-3 right-3 w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold transition-opacity ${
+                    selectedRole === "owner" ? "opacity-100" : "opacity-0"
+                  }`}
+                >
+                  ✓
+                </div>
+                <span className="text-4xl mb-3 block">🏠</span>
+                <div className="font-['Bebas_Neue'] text-2xl">
+                  I'm a Land Owner
+                </div>
+                <p className="text-gray-500 text-sm">
+                  Earn money by listing unused land or driveway.
+                </p>
+                <div className="mt-3 inline-block bg-orange-500/10 border border-orange-500/20 rounded-full px-2 py-1 text-xs text-orange-500">
+                  💰 List & Earn
+                </div>
+              </div>
+            </div>
+
+            <button
+              className="w-full md:w-auto px-8 py-3 rounded-xl text-white font-bold bg-gradient-to-r from-orange-500 to-orange-600 hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!selectedRole}
+              onClick={handleContinue}
+            >
+              Continue →
+            </button>
+
+            <p className="text-gray-500 text-sm mt-4">
+              Already have an account?{" "}
+              <a
+                href="#"
+                className="text-orange-500 hover:underline"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onNavigateToSignIn();
+                }}
+              >
+                Sign In
+              </a>
+            </p>
+          </div>
+        </div>
       </div>
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="fixed bottom-6 right-6 bg-gray-900 border-l-4 border-orange-500 rounded-xl shadow-2xl p-4 flex items-center gap-3 z-50 animate-slide-up">
+          <span className="text-2xl">✅</span>
+          <div>
+            <p className="font-semibold text-white">ParkEase</p>
+            <p className="text-sm text-gray-300">{toast.message}</p>
+          </div>
+        </div>
+      )}
     </>
   );
 };

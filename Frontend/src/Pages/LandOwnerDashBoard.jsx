@@ -85,7 +85,7 @@ const AMENITY_OPTS=["CCTV","Lighting","Covered Roof","Security Guard","EV Chargi
 /* ══════════════════════════════════════════════
    MAIN
 ══════════════════════════════════════════════ */
-export default function LandOwner(){
+export default function LandOwnerDashBoard(){
   const [page,setPage]=useState("overview");
   const [spots,setSpots]=useState(INIT_SPOTS);
   const [bookings]=useState(BOOKINGS);
