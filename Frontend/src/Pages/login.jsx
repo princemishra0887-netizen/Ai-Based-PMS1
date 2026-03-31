@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import OTPPage from "./loginOTP";
+import { supabase } from "../lib/supabaseClient";
 
 const Login = () => {
   const [page, setPage] = useState("login");
@@ -10,7 +12,10 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [userType, setUserType] = useState("user"); // "user" or "landowner"
+  
+  const navigate = useNavigate();
 
   // Custom cursor effect for ParkEase theme
   useEffect(() => {
@@ -69,7 +74,7 @@ const Login = () => {
 
   const destination = method === "email" ? email : `+91 ${phone}`;
 
-  const handleNext = () => {
+  const handleNext = async () => {
     setError("");
     if (method === "email" && !email) {
       setError("Please enter your email address.");
@@ -83,7 +88,28 @@ const Login = () => {
       setError("Please enter your password.");
       return;
     }
-    setPage("otp");
+
+    setLoading(true);
+    let errorMsg = null;
+
+    if (method === "email") {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) errorMsg = error.message;
+    } else {
+      const formattedPhone = "+91" + phone.replace(/\D/g, "");
+      const { error } = await supabase.auth.signInWithPassword({ phone: formattedPhone, password });
+      if (error) errorMsg = error.message;
+    }
+
+    setLoading(false);
+
+    if (errorMsg) {
+      setError(errorMsg);
+      return;
+    }
+
+    // Redirect to dashboard directly 
+    window.location.href = '/dashboard';
   };
 
   if (page === "otp") {
@@ -350,9 +376,10 @@ const Login = () => {
                 <button
                   type="button"
                   onClick={handleNext}
-                  className="relative mt-3 h-12 w-full rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-base font-semibold text-white shadow-lg transition-all hover:shadow-orange-500/25 hover:scale-[1.02] active:scale-[0.98]"
+                  disabled={loading}
+                  className="relative mt-3 h-12 w-full rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-base font-semibold text-white shadow-lg transition-all hover:shadow-orange-500/25 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Next
+                  {loading ? "Sending..." : "Continue"}
                 </button>
               </div>
 
@@ -366,6 +393,7 @@ const Login = () => {
                 </button>
                 <button
                   type="button"
+                  onClick={() => navigate('/auth/signup')}
                   className="text-gray-400 transition-colors hover:text-orange-500"
                 >
                   Sign up →

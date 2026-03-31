@@ -4,23 +4,21 @@ import { useNavigate } from "react-router-dom";
 const ParkEaseAuthChoice = ({ onChoice }) => {
   const [toast, setToast] = useState({ show: false, message: "" });
 
-  // Add this inside your ParkEaseAuthChoice component
-const navigate = useNavigate();
+  const navigate = useNavigate();
 
-// Update the handleChoice function
-const handleChoice = (choice) => {
-  if (choice === "signup") {
-    showToast("🎉 Let's create your account!");
-    setTimeout(() => {
-      navigate("/auth/signup");
-    }, 500);
-  } else {
-    showToast("👋 Welcome back!");
-    setTimeout(() => {
-      navigate("/auth/login");
-    }, 500);
-  }
-};
+  const handleChoice = (choice) => {
+    if (choice === "signup") {
+      showToast("🎉 Let's create your account!");
+      setTimeout(() => {
+        navigate("/auth/signup");
+      }, 500);
+    } else {
+      showToast("👋 Welcome back!");
+      setTimeout(() => {
+        navigate("/auth/login");
+      }, 500);
+    }
+  };
 
   // Custom cursor effect
   useEffect(() => {

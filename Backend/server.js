@@ -1,21 +1,15 @@
-import { useEffect, useState } from "react"
+import express from "express";
+import cors from "cors";
 
-function App() {
+const app = express();
+app.use(cors());
+app.use(express.json());
 
-  const [data,setData] = useState("")
+app.get("/api/parking", (req, res) => {
+  res.json({ message: "Welcome to AI Parking Management System API" });
+});
 
-  useEffect(()=>{
-    fetch("http://localhost:5000/api/parking")
-    .then(res => res.json())
-    .then(data => setData(data.message))
-  },[])
-
-  return (
-    <>
-      <h1>AI Parking Management System</h1>
-      <h2>{data}</h2>
-    </>
-  )
-}
-
-export default App
+const PORT = 5001;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});

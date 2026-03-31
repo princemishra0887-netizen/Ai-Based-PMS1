@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabaseClient';
 
 const SecureIdRegistration = () => {
+  const navigate = useNavigate();
   const [role, setRole] = useState('user');
   const [step, setStep] = useState(1);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -13,6 +18,8 @@ const SecureIdRegistration = () => {
     phone: '',
     phoneOtp: '',
     email: '',
+    password: '',
+    confirmPassword: '',
     emailOtp: '',
   });
   const [otpSent, setOtpSent] = useState({ phone: false, email: false });
@@ -33,40 +40,137 @@ const SecureIdRegistration = () => {
     setFormData((prev) => ({ ...prev, [field]: file }));
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step === 3) {
-      setOtpSent((prev) => ({ ...prev, phone: true }));
-      setToast({ show: true, message: 'OTP sent to phone' });
-      setTimeout(() => setToast({ show: false, message: '' }), 3000);
-    } else if (step === 5) {
-      setOtpSent((prev) => ({ ...prev, email: true }));
-      setToast({ show: true, message: 'OTP sent to email' });
-      setTimeout(() => setToast({ show: false, message: '' }), 3000);
+      if (!formData.phone || formData.phone.length < 10) {
+        setToast({ show: true, message: '⚠️ Please enter a valid 10-digit phone number.' });
+        setTimeout(() => setToast({ show: false, message: '' }), 3000);
+        return;
+      }
+      try {
+        const { error } = await supabase.auth.signInWithOtp({
+          phone: '+91' + formData.phone.slice(-10),
+        });
+        if (error) throw error;
+        setToast({ show: true, message: '📱 OTP sent to your phone!' });
+        setTimeout(() => setToast({ show: false, message: '' }), 3000);
+      } catch (err) {
+        // SMS provider not configured — use demo bypass
+        setToast({
+          show: true,
+          message: '📵 SMS not configured. Use 123456 as OTP to continue (demo mode).',
+        });
+        setTimeout(() => setToast({ show: false, message: '' }), 5000);
+        // Still proceed to OTP entry screen so user can use the bypass
+      }
+    } else if (step === 4) {
+      if (formData.phoneOtp !== '123456') {
+        try {
+          const { error } = await supabase.auth.verifyOtp({
+            phone: '+91' + formData.phone,
+            token: formData.phoneOtp,
+            type: 'sms',
+          });
+          if (error) throw error;
+        } catch (err) {
+          setToast({ show: true, message: `❌ Invalid OTP: ${err.message}. Use 123456 to bypass in demo mode.` });
+          setTimeout(() => setToast({ show: false, message: '' }), 4000);
+          return; // Block from proceeding if invalid and not bypass
+        }
+      }
     }
     setStep((prev) => prev + 1);
   };
 
   const handleBack = () => setStep((prev) => prev - 1);
 
-  const handleSubmit = () => {
-    setToast({ show: true, message: `🎉 ${role} registered successfully!` });
-    setTimeout(() => {
-      setToast({ show: false, message: '' });
-      setStep(1);
-      setFormData({
-        firstName: '',
-        lastName: '',
-        gender: '',
-        dob: '',
-        aadhaarFile: null,
-        photoFile: null,
-        phone: '',
-        phoneOtp: '',
-        email: '',
-        emailOtp: '',
+  const handleSubmit = async () => {
+    // Validate passwords
+    if (formData.password.length < 8) {
+      setToast({ show: true, message: '❌ Password must be at least 8 characters.' });
+      setTimeout(() => setToast({ show: false, message: '' }), 4000);
+      return;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setToast({ show: true, message: '❌ Passwords do not match. Please try again.' });
+      setTimeout(() => setToast({ show: false, message: '' }), 4000);
+      return;
+    }
+
+    try {
+      // 1️⃣ Create the auth user
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            role: role,
+            phone: formData.phone,
+          },
+        },
       });
-      setOtpSent({ phone: false, email: false });
-    }, 3000);
+      if (error) throw error;
+
+      const userId = data.user?.id;
+
+      // 2️⃣ Upload Aadhaar to Supabase Storage (if provided)
+      let aadhaarUrl = null;
+      if (formData.aadhaarFile && userId) {
+        const ext = formData.aadhaarFile.name.split('.').pop();
+        const path = `aadhaar/${userId}.${ext}`;
+        const { error: uploadErr } = await supabase.storage
+          .from('user-documents')
+          .upload(path, formData.aadhaarFile, { upsert: true });
+        if (!uploadErr) {
+          const { data: urlData } = supabase.storage.from('user-documents').getPublicUrl(path);
+          aadhaarUrl = urlData?.publicUrl ?? null;
+        }
+      }
+
+      // 3️⃣ Upload Photo to Supabase Storage (if provided)
+      let photoUrl = null;
+      if (formData.photoFile && userId) {
+        const ext = formData.photoFile.name.split('.').pop();
+        const path = `photos/${userId}.${ext}`;
+        const { error: uploadErr } = await supabase.storage
+          .from('user-documents')
+          .upload(path, formData.photoFile, { upsert: true });
+        if (!uploadErr) {
+          const { data: urlData } = supabase.storage.from('user-documents').getPublicUrl(path);
+          photoUrl = urlData?.publicUrl ?? null;
+        }
+      }
+
+      // 4️⃣ Insert profile data into the profiles table
+      if (userId) {
+        const { error: profileError } = await supabase.from('profiles').insert({
+          id: userId,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          gender: formData.gender,
+          dob: formData.dob || null,
+          phone: formData.phone,
+          email: formData.email,
+          role: role,
+          aadhaar_url: aadhaarUrl,
+          photo_url: photoUrl,
+        });
+        if (profileError) {
+          console.warn('Profile insert warning:', profileError.message);
+        }
+      }
+
+      setToast({ show: true, message: `🎉 ${role} registered! Check your email to confirm.` });
+      setTimeout(() => {
+        setToast({ show: false, message: '' });
+        navigate('/dashboard');
+      }, 3000);
+    } catch (err) {
+      setToast({ show: true, message: `❌ Error: ${err.message}` });
+      setTimeout(() => setToast({ show: false, message: '' }), 4000);
+    }
   };
 
   const renderStepIndicator = () => {
@@ -75,8 +179,7 @@ const SecureIdRegistration = () => {
       'Documents',
       'Phone',
       'Verify Phone',
-      'Email',
-      'Verify Email',
+      'Account',
       'Complete',
     ];
     return (
@@ -157,7 +260,7 @@ const SecureIdRegistration = () => {
           )}
 
           {/* Step Indicator */}
-          {step > 1 && step < 7 && renderStepIndicator()}
+          {step > 1 && step < 6 && renderStepIndicator()}
 
           {/* Form Steps */}
           <div className="space-y-6">
@@ -372,66 +475,97 @@ const SecureIdRegistration = () => {
               </div>
             )}
 
-            {/* Step 5: Email */}
+            {/* Step 5: Email & Password */}
             {step === 5 && (
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
-                  placeholder="rahul@example.com"
-                />
-              </div>
-            )}
-
-            {/* Step 6: Email OTP */}
-            {step === 6 && (
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Enter 6-digit OTP sent to {formData.email}
-                </label>
-                <div className="flex gap-2 justify-center mb-4">
-                  {[...Array(6)].map((_, i) => (
-                    <input
-                      key={i}
-                      type="text"
-                      maxLength="1"
-                      className="w-12 h-14 bg-gray-700/50 border border-gray-600 rounded-xl text-center text-xl font-bold text-white focus:border-indigo-500 focus:outline-none"
-                      value={formData.emailOtp[i] || ''}
-                      onChange={(e) => {
-                        const otp = formData.emailOtp.split('');
-                        otp[i] = e.target.value.replace(/\D/g, '');
-                        setFormData((prev) => ({
-                          ...prev,
-                          emailOtp: otp.join('').slice(0, 6),
-                        }));
-                        if (e.target.value && i < 5) {
-                          document.getElementById(`email-otp-${i + 1}`)?.focus();
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Backspace' && !formData.emailOtp[i] && i > 0) {
-                          document.getElementById(`email-otp-${i - 1}`)?.focus();
-                        }
-                      }}
-                      id={`email-otp-${i}`}
-                    />
-                  ))}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
+                    placeholder="rahul@example.com"
+                  />
                 </div>
-                <p className="text-center text-sm text-gray-400 mt-2">
-                  Didn't receive?{' '}
-                  <button className="text-indigo-400 hover:underline">Resend OTP</button>
-                </p>
+
+                {/* Password */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      className={`w-full bg-gray-700/50 border rounded-xl px-4 py-3 text-white focus:outline-none pr-12 ${
+                        formData.password && formData.password.length < 8
+                          ? 'border-red-500 focus:border-red-500'
+                          : 'border-gray-600 focus:border-indigo-500'
+                      }`}
+                      placeholder="Min 8 characters"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    >
+                      {showPassword ? '👁️' : '👁️‍🗨️'}
+                    </button>
+                  </div>
+                  {formData.password && formData.password.length < 8 && (
+                    <p className="text-xs text-red-400 mt-1">⚠️ Password must be at least 8 characters</p>
+                  )}
+                  {formData.password && formData.password.length >= 8 && (
+                    <p className="text-xs text-green-400 mt-1">✓ Password strength OK</p>
+                  )}
+                </div>
+
+                {/* Confirm Password */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleInputChange}
+                      className={`w-full bg-gray-700/50 border rounded-xl px-4 py-3 text-white focus:outline-none pr-12 ${
+                        formData.confirmPassword && formData.confirmPassword !== formData.password
+                          ? 'border-red-500 focus:border-red-500'
+                          : formData.confirmPassword && formData.confirmPassword === formData.password
+                          ? 'border-green-500 focus:border-green-500'
+                          : 'border-gray-600 focus:border-indigo-500'
+                      }`}
+                      placeholder="Re-enter your password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    >
+                      {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
+                    </button>
+                  </div>
+                  {formData.confirmPassword && formData.confirmPassword !== formData.password && (
+                    <p className="text-xs text-red-400 mt-1">❌ Passwords do not match</p>
+                  )}
+                  {formData.confirmPassword && formData.confirmPassword === formData.password && formData.password.length >= 8 && (
+                    <p className="text-xs text-green-400 mt-1">✓ Passwords match</p>
+                  )}
+                </div>
               </div>
             )}
 
-            {/* Step 7: Completion */}
-            {step === 7 && (
+            {/* Step 6: Completion */}
+            {step === 6 && (
               <div className="text-center py-8">
                 <div className="text-6xl mb-4">🎉</div>
                 <h3 className="text-2xl font-bold text-white mb-2">Registration Complete!</h3>
@@ -461,7 +595,7 @@ const SecureIdRegistration = () => {
           </div>
 
           {/* Navigation Buttons */}
-          {step > 1 && step < 7 && (
+          {step > 1 && step < 6 && (
             <div className="flex gap-4 mt-8">
               <button
                 onClick={handleBack}
@@ -470,14 +604,14 @@ const SecureIdRegistration = () => {
                 ← Back
               </button>
               <button
-                onClick={step === 6 ? handleSubmit : handleNext}
+                onClick={step === 5 ? handleSubmit : handleNext}
                 className={`flex-1 px-6 py-3 rounded-xl text-white font-medium transition-all ${
                   role === 'admin'
                     ? 'bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700'
                     : 'bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700'
                 }`}
               >
-                {step === 6 ? 'Complete Registration' : 'Continue →'}
+                {step === 5 ? 'Complete Registration' : 'Continue →'}
               </button>
             </div>
           )}
@@ -496,9 +630,9 @@ const SecureIdRegistration = () => {
         {/* Login Link */}
         <p className="text-center text-gray-400 text-sm mt-6">
           Already have an account?{' '}
-          <a href="#" className="text-indigo-400 hover:underline">
+          <button onClick={() => navigate('/auth/login')} className="text-indigo-400 hover:underline">
             Sign In
-          </a>
+          </button>
         </p>
       </div>
 

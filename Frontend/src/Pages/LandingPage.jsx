@@ -1,7 +1,9 @@
 import React, { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 // import './ParkEase.css'; // Optional: if you want to keep styles separate
 
 const ParkEase = () => {
+  const navigate = useNavigate();
   // Refs for cursor elements
   const cursorRef = useRef(null);
   const ringRef = useRef(null);
@@ -318,7 +320,7 @@ const ParkEase = () => {
           <a href="#spots">Spots</a>
           <a href="#reviews">Reviews</a>
           <a href="#pricing">Pricing</a>
-          <a href="#cta" className="nav-cta">Get Started</a>
+          <a href="#" onClick={(e) => { e.preventDefault(); navigate('/auth/parkease'); }} className="nav-cta">Get Started</a>
         </div>
       </nav>
 
@@ -336,7 +338,7 @@ const ParkEase = () => {
           Connect with real land owners near you. Book a parking spot in under 30 seconds — hourly, daily, or long-term.
         </p>
         <div className="hero-actions">
-          <a href="#" className="btn-primary-hero">
+          <a href="#" onClick={(e) => { e.preventDefault(); navigate('/auth/parkease'); }} className="btn-primary-hero">
             Find Parking Near Me
             <span>→</span>
           </a>
@@ -655,8 +657,8 @@ const ParkEase = () => {
           <h2 className="cta-h2">Your Spot is<br /><em>Waiting.</em></h2>
           <p className="cta-sub">Join thousands of drivers and land owners already using ParkEase across Delhi NCR.</p>
           <div className="cta-actions">
-            <a href="#" className="btn-primary-hero">Find Parking Now →</a>
-            <a href="#" className="btn-ghost">List Your Land</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); navigate('/auth/parkease'); }} className="btn-primary-hero">Find Parking Now →</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); navigate('/auth/parkease'); }} className="btn-ghost">List Your Land</a>
           </div>
         </div>
       </section>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
+import { supabase } from "../lib/supabaseClient";
 
 const ParkEaseAuthForm = ({ type }) => {
   const navigate = useNavigate();
@@ -9,11 +10,22 @@ const ParkEaseAuthForm = ({ type }) => {
   
   const [formData, setFormData] = useState({
     name: "",
-    email: "",
+    identifier: "",   // email OR phone number
+    email: "",         // used only for signup
     password: "",
     confirmPassword: "",
     role: userRole,
   });
+
+  // Detect whether the identifier looks like an email or a phone number
+  const detectInputType = (value) => {
+    const cleaned = value.replace(/\s|-/g, '');
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'email';
+    if (/^[0-9]{10}$/.test(cleaned)) return 'phone';
+    return 'unknown';
+  };
+
+  const identifierType = detectInputType(formData.identifier);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState({ show: false, message: "" });
@@ -82,39 +94,96 @@ const ParkEaseAuthForm = ({ type }) => {
     setLoading(true);
     setError("");
 
-    if (!formData.email || !formData.password) {
-      setError("Please fill in all required fields");
-      setLoading(false);
+    // ── SIGNUP ──────────────────────────────────────────────
+    if (type === "signup") {
+      if (!formData.email || !formData.password) {
+        setError("Please fill in all required fields");
+        setLoading(false);
+        return;
+      }
+      if (formData.password !== formData.confirmPassword) {
+        setError("Passwords do not match");
+        setLoading(false);
+        return;
+      }
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+          options: { data: { name: formData.name, role: formData.role } },
+        });
+        if (error) throw error;
+        if (data?.user) {
+          localStorage.setItem("user", JSON.stringify({ ...data.user, name: formData.name, role: formData.role }));
+          localStorage.setItem("userRole", formData.role);
+          showToast(`Account created as ${formData.role === 'driver' ? 'Driver' : 'Land Owner'}! 🎉`);
+          setTimeout(() => navigate("/dashboard"), 1500);
+        }
+      } catch (err) {
+        const msg = err.message || "Sign-up failed";
+        setError(msg);
+        showToast(msg, true);
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 
-    if (type === "signup" && formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
+    // ── LOGIN ───────────────────────────────────────────────
+    if (!formData.identifier || !formData.password) {
+      setError("Please enter your email / phone and password");
       setLoading(false);
       return;
     }
 
     try {
-      const endpoint = type === "signup" ? "/api/auth/register" : "/api/auth/login";
-      const payload = type === "signup" 
-        ? { name: formData.name, email: formData.email, password: formData.password, role: formData.role }
-        : { email: formData.email, password: formData.password };
+      const rawIdentifier = formData.identifier.trim();
+      let loginEmail = rawIdentifier;
 
-      const response = await axios.post(`http://localhost:5000${endpoint}`, payload);
+      // Re-detect type fresh inside submit (avoids stale closure)
+      const cleaned = rawIdentifier.replace(/\s|-/g, '');
+      const isPhone = /^[0-9]{10}$/.test(cleaned);
+      const isEmail = rawIdentifier.includes('@');
 
-      if (response.data.success) {
-        localStorage.setItem("user", JSON.stringify(response.data.user));
-        localStorage.setItem("userRole", response.data.user.role || formData.role);
-        showToast(type === "signup" ? `Account created as ${formData.role === 'driver' ? 'Driver' : 'Land Owner'}! 🎉` : "Welcome back! 👋");
-        
-        setTimeout(() => {
-          navigate("/dashboard");
-        }, 1500);
+      // If the user typed a phone number, look up the email via secure DB function
+      if (isPhone) {
+        const { data: foundEmail, error: rpcErr } = await supabase
+          .rpc('get_email_by_phone', { p_phone: cleaned });
+
+        if (rpcErr || !foundEmail) {
+          throw new Error('No account found with that phone number. Please use your registered email instead.');
+        }
+        loginEmail = foundEmail;
+      }
+      // If not phone and not email-like, still attempt — Supabase will return the proper error
+      // This avoids false-blocking edge-case email formats
+
+      // Sign in with resolved email + password
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: formData.password,
+      });
+      if (error) throw error;
+
+      if (data?.user) {
+        localStorage.setItem("user", JSON.stringify({ ...data.user, role: formData.role }));
+        localStorage.setItem("userRole", formData.role);
+        showToast("Welcome back! 👋");
+        setTimeout(() => navigate("/dashboard"), 1500);
       }
     } catch (err) {
-      const errorMessage = err.response?.data?.message || "Authentication failed";
-      setError(errorMessage);
-      showToast(errorMessage, true);
+      const msg = err.message || "Authentication failed";
+      // Make common Supabase errors more user-friendly
+      const friendlyMsg =
+        msg.includes("Email not confirmed")
+          ? "❌ Please confirm your email first. Check your inbox for the confirmation link."
+          : msg.includes("Invalid login credentials")
+          ? "❌ Incorrect email/phone or password."
+          : msg.includes("No account found")
+          ? "❌ " + msg
+          : "❌ " + msg;
+      setError(friendlyMsg);
+      showToast(friendlyMsg, true);
     } finally {
       setLoading(false);
     }
@@ -224,21 +293,56 @@ const ParkEaseAuthForm = ({ type }) => {
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 bg-gray-900/50 border border-white/10 rounded-xl focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all text-white"
-                  placeholder="you@example.com"
-                  required
-                  disabled={loading}
-                />
-              </div>
+              {/* Login: single flexible identifier field */}
+              {!isSignup && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                    Email or Phone Number
+                    {formData.identifier && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        identifierType === 'email'   ? 'bg-green-500/20 text-green-400' :
+                        identifierType === 'phone'   ? 'bg-blue-500/20  text-blue-400'  :
+                                                        'bg-gray-500/20  text-gray-400'
+                      }`}>
+                        {identifierType === 'email' ? '✉️ Email' : identifierType === 'phone' ? '📱 Phone' : 'Type to detect'}
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="text"
+                    name="identifier"
+                    value={formData.identifier}
+                    onChange={handleInputChange}
+                    className={`w-full px-4 py-3 bg-gray-900/50 border rounded-xl focus:outline-none focus:ring-1 transition-all text-white ${
+                      identifierType === 'email' ? 'border-green-500/40 focus:border-green-500/70 focus:ring-green-500/20' :
+                      identifierType === 'phone' ? 'border-blue-500/40  focus:border-blue-500/70  focus:ring-blue-500/20'  :
+                                                    'border-white/10     focus:border-orange-500/50 focus:ring-orange-500/20'
+                    }`}
+                    placeholder="you@example.com  or  9876543210"
+                    required
+                    disabled={loading}
+                    autoComplete="username"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Enter your registered email or 10-digit mobile number</p>
+                </div>
+              )}
+
+              {/* Signup: traditional email field */}
+              {isSignup && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Email Address</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 bg-gray-900/50 border border-white/10 rounded-xl focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/50 transition-all text-white"
+                    placeholder="you@example.com"
+                    required
+                    disabled={loading}
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
