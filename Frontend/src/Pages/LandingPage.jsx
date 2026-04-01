@@ -1,7 +1,9 @@
 import React, { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 // import './ParkEase.css'; // Optional: if you want to keep styles separate
 
 const ParkEase = () => {
+  const navigate = useNavigate();
   // Refs for cursor elements
   const cursorRef = useRef(null);
   const ringRef = useRef(null);
@@ -40,10 +42,10 @@ const ParkEase = () => {
     const interactiveElements = document.querySelectorAll(
       'a, button, .spot-card, .how-card, .review-card, .pricing-card, .feature-item'
     );
-    
+
     const addHover = () => document.body.classList.add('hovering');
     const removeHover = () => document.body.classList.remove('hovering');
-    
+
     interactiveElements.forEach(el => {
       el.addEventListener('mouseenter', addHover);
       el.addEventListener('mouseleave', removeHover);
@@ -56,7 +58,7 @@ const ParkEase = () => {
         const pct = (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100;
         progressRef.current.style.width = pct + '%';
       }
-      
+
       // Navbar scroll effect
       if (navRef.current) {
         if (window.scrollY > 60) {
@@ -244,7 +246,7 @@ const ParkEase = () => {
         }
       };
       spotsScroll.addEventListener('wheel', handleWheel, { passive: false });
-      
+
       return () => {
         spotsScroll.removeEventListener('wheel', handleWheel);
       };
@@ -252,7 +254,7 @@ const ParkEase = () => {
 
     // Magnetic buttons - renamed to avoid conflict
     const magneticButtons = document.querySelectorAll('.btn-primary-hero, .btn-ghost, .nav-cta');
-    
+
     const handleMagneticMove = (e) => {
       const btn = e.currentTarget;
       const r = btn.getBoundingClientRect();
@@ -274,17 +276,17 @@ const ParkEase = () => {
     return () => {
       document.removeEventListener('mousemove', handleCursorMove);
       window.removeEventListener('scroll', handleScroll);
-      
+
       interactiveElements.forEach(el => {
         el.removeEventListener('mouseenter', addHover);
         el.removeEventListener('mouseleave', removeHover);
       });
-      
+
       magneticButtons.forEach((btn) => {
         btn.removeEventListener('mousemove', handleMagneticMove);
         btn.removeEventListener('mouseleave', handleMagneticLeave);
       });
-      
+
       observer.disconnect();
       howGridObserver.disconnect();
       featuresObserver.disconnect();
@@ -318,7 +320,8 @@ const ParkEase = () => {
           <a href="#spots">Spots</a>
           <a href="#reviews">Reviews</a>
           <a href="#pricing">Pricing</a>
-          <a href="#cta" className="nav-cta">Get Started</a>
+          <a onClick={() => navigate('/login')} style={{ cursor: 'pointer' }} className="nav-login">Log In</a>
+          <a onClick={() => navigate('/choose-role')} style={{ cursor: 'pointer' }} className="nav-cta">Get Started</a>
         </div>
       </nav>
 
@@ -336,7 +339,7 @@ const ParkEase = () => {
           Connect with real land owners near you. Book a parking spot in under 30 seconds — hourly, daily, or long-term.
         </p>
         <div className="hero-actions">
-          <a href="#" className="btn-primary-hero">
+          <a onClick={() => navigate('/book-parking')} style={{ cursor: 'pointer' }} className="btn-primary-hero">
             Find Parking Near Me
             <span>→</span>
           </a>
@@ -655,8 +658,8 @@ const ParkEase = () => {
           <h2 className="cta-h2">Your Spot is<br /><em>Waiting.</em></h2>
           <p className="cta-sub">Join thousands of drivers and land owners already using ParkEase across Delhi NCR.</p>
           <div className="cta-actions">
-            <a href="#" className="btn-primary-hero">Find Parking Now →</a>
-            <a href="#" className="btn-ghost">List Your Land</a>
+            <a onClick={() => navigate('/book-parking')} style={{ cursor: 'pointer' }} className="btn-primary-hero">Find Parking Now →</a>
+            <a onClick={() => navigate('/landowner-dashboard')} style={{ cursor: 'pointer' }} className="btn-ghost">List Your Land</a>
           </div>
         </div>
       </section>
@@ -800,6 +803,19 @@ const ParkEase = () => {
           transform:translateY(-1px)!important;
         }
         .nav-cta::after{display:none!important}
+        .nav-login{
+          border:1px solid rgba(249,115,22,0.4)!important;
+          color:#f97316!important;padding:10px 22px;border-radius:8px;
+          font-weight:600!important;font-size:13px!important;
+          transition:all 0.3s ease!important;
+          background:transparent!important;
+        }
+        .nav-login:hover{
+          background:rgba(249,115,22,0.1)!important;
+          border-color:#f97316!important;
+          transform:translateY(-1px)!important;
+        }
+        .nav-login::after{display:none!important}
 
         /* HERO */
         #hero{

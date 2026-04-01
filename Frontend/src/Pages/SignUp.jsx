@@ -1,21 +1,28 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
 
-const SecureIdRegistration = () => {
+const SignUp = () => {
+  const navigate = useNavigate();
+  const { signUp } = useAuth();
+
   const [role, setRole] = useState('user');
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
+    email: '',
+    password: '',
     gender: '',
     dob: '',
+    phone: '',
     aadhaarFile: null,
     photoFile: null,
-    phone: '',
-    phoneOtp: '',
-    email: '',
-    emailOtp: '',
   });
-  const [otpSent, setOtpSent] = useState({ phone: false, email: false });
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [toast, setToast] = useState({ show: false, message: '' });
 
   const handleInputChange = (e) => {
@@ -26,494 +33,337 @@ const SecureIdRegistration = () => {
   const handleFileChange = (e, field) => {
     const file = e.target.files[0];
     if (file && file.size > 5 * 1024 * 1024) {
-      setToast({ show: true, message: 'File too large (max 5MB)' });
-      setTimeout(() => setToast({ show: false, message: '' }), 3000);
+      showToast('File too large (max 5MB)');
       return;
     }
     setFormData((prev) => ({ ...prev, [field]: file }));
   };
 
+  const showToast = (message) => {
+    setToast({ show: true, message });
+    setTimeout(() => setToast({ show: false, message: '' }), 3000);
+  };
+
   const handleNext = () => {
-    if (step === 3) {
-      setOtpSent((prev) => ({ ...prev, phone: true }));
-      setToast({ show: true, message: 'OTP sent to phone' });
-      setTimeout(() => setToast({ show: false, message: '' }), 3000);
-    } else if (step === 5) {
-      setOtpSent((prev) => ({ ...prev, email: true }));
-      setToast({ show: true, message: 'OTP sent to email' });
-      setTimeout(() => setToast({ show: false, message: '' }), 3000);
+    // Validation
+    if (step === 1) {
+      if (!formData.email || !formData.password) {
+        setError('Email and Password are required');
+        return;
+      }
     }
+    setError('');
     setStep((prev) => prev + 1);
   };
 
-  const handleBack = () => setStep((prev) => prev - 1);
+  const handleBack = () => {
+    setError('');
+    setStep((prev) => prev - 1);
+  };
 
-  const handleSubmit = () => {
-    setToast({ show: true, message: `🎉 ${role} registered successfully!` });
-    setTimeout(() => {
-      setToast({ show: false, message: '' });
-      setStep(1);
-      setFormData({
-        firstName: '',
-        lastName: '',
-        gender: '',
-        dob: '',
-        aadhaarFile: null,
-        photoFile: null,
-        phone: '',
-        phoneOtp: '',
-        email: '',
-        emailOtp: '',
+  const handleSubmit = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const { data, error: signUpError } = await signUp(formData.email, formData.password, {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        role: role,
+        phone: formData.phone,
       });
-      setOtpSent({ phone: false, email: false });
-    }, 3000);
+
+      if (signUpError) throw signUpError;
+
+      showToast(`🎉 Welcome to ParkEase, ${formData.firstName || 'User'}!`);
+      setTimeout(() => {
+        navigate(role === 'admin' ? '/landowner-dashboard' : '/book-parking');
+      }, 2000);
+    } catch (err) {
+      setError(err.message || 'Registration failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const renderStepIndicator = () => {
-    const steps = [
-      'Personal',
-      'Documents',
-      'Phone',
-      'Verify Phone',
-      'Email',
-      'Verify Email',
-      'Complete',
-    ];
-    return (
-  <div className="flex justify-center items-center mb-8 px-2 max-w-2xl mx-auto">
-    {steps.map((label, idx) => (
-      <div key={idx} className="flex flex-col items-center mx-2 first:ml-0 last:mr-0">
-        <div
-          className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold mb-2 ${
-            idx + 1 < step
-              ? 'bg-green-500 text-white'
-              : idx + 1 === step
-              ? 'bg-indigo-500 text-white ring-2 ring-indigo-300'
-              : 'bg-gray-700 text-gray-400'
-          }`}
-        >
-          {idx + 1 < step ? '✓' : idx + 1}
-        </div>
-        <span className="text-xs text-gray-400 text-center hidden md:block whitespace-nowrap">
-          {label}
-        </span>
-      </div>
-    ))}
-  </div>
-);
-  };
+  const steps = [
+    'Account',
+    'Personal',
+    'Documents',
+    'Verification',
+    'Finish'
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center p-4">
-      <div className="max-w-2xl w-full">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-3">
-            <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-pink-500 rounded-xl flex items-center justify text-2xl">
-              🛡️
+    <>
+      <div style={styles.bgGrid}></div>
+      <div style={styles.noise}></div>
+
+      <div style={styles.container}>
+        {/* Back button */}
+        <button style={styles.backBtn} onClick={() => navigate('/')}>
+          <span style={{ fontSize: '18px' }}>←</span> Back
+        </button>
+
+        <div style={styles.mainContent}>
+          {/* Header */}
+          <div style={styles.header}>
+            <div style={styles.logoRow}>
+              <div style={styles.logoBox}>P</div>
+              <span style={styles.appName}>ParkEase</span>
             </div>
-            <span className="font-mono text-xl font-bold bg-gradient-to-r from-indigo-400 to-pink-400 bg-clip-text text-transparent">
-              SecureID
-            </span>
+            <h1 style={styles.title}>
+              {step === 1 ? 'Create Account' : `Step ${step} of ${steps.length}`}
+            </h1>
+            <div style={styles.roleBadge}>
+              <span style={styles.dot}></span>
+              REGISTERING AS {role.toUpperCase()}
+            </div>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">
-            {step === 1 ? 'Create Account' : `Step ${step} of 7`}
-          </h1>
-          <p className="text-gray-400">
-            {role === 'admin' ? '👑 Admin' : '👤 User'} registration
+
+          <div style={styles.card}>
+            {/* Step Indicator */}
+            <div style={styles.stepper}>
+              {steps.map((label, idx) => (
+                <React.Fragment key={idx}>
+                  <div style={{
+                    ...styles.stepCircle,
+                    background: idx + 1 <= step ? 'linear-gradient(135deg, #f97316, #ea580c)' : 'rgba(255,255,255,0.05)',
+                    color: idx + 1 <= step ? '#fff' : '#444'
+                  }}>
+                    {idx + 1 < step ? '✓' : idx + 1}
+                  </div>
+                  {idx < steps.length - 1 && (
+                    <div style={{
+                      ...styles.stepLine,
+                      background: idx + 1 < step ? '#f97316' : 'rgba(255,255,255,0.05)'
+                    }}></div>
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+
+            <div style={styles.formContent}>
+              <AnimatePresence mode="wait">
+                {step === 1 && (
+                  <motion.div 
+                    key="step1" 
+                    initial={{ opacity: 0, x: 20 }} 
+                    animate={{ opacity: 1, x: 0 }} 
+                    exit={{ opacity: 0, x: -20 }}
+                  >
+                    <div style={styles.roleSelection}>
+                      <label style={styles.sectionLabel}>Select Your Role</label>
+                      <div style={styles.roleGrid}>
+                        {['user', 'admin'].map((r) => (
+                          <div 
+                            key={r}
+                            onClick={() => setRole(r)}
+                            style={{
+                              ...styles.roleCard,
+                              borderColor: role === r ? '#f97316' : 'rgba(255,255,255,0.06)',
+                              background: role === r ? 'rgba(249,115,22,0.05)' : 'rgba(255,255,255,0.02)'
+                            }}
+                          >
+                            <span style={styles.roleIcon}>{r === 'admin' ? '🏠' : '🚗'}</span>
+                            <span style={styles.roleName}>{r === 'admin' ? 'Land Owner' : 'Parking Finder'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={styles.grid}>
+                      <div style={styles.inputWrap}>
+                        <label style={styles.inputLabel}>Email Address</label>
+                        <input 
+                          type="email" 
+                          name="email" 
+                          value={formData.email} 
+                          onChange={handleInputChange} 
+                          placeholder="rahul@example.com"
+                          style={styles.input}
+                        />
+                      </div>
+                      <div style={styles.inputWrap}>
+                        <label style={styles.inputLabel}>Password</label>
+                        <input 
+                          type="password" 
+                          name="password" 
+                          value={formData.password} 
+                          onChange={handleInputChange} 
+                          placeholder="••••••••"
+                          style={styles.input}
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {step === 2 && (
+                  <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+                    <div style={styles.grid}>
+                      <div style={styles.inputWrap}>
+                        <label style={styles.inputLabel}>First Name</label>
+                        <input type="text" name="firstName" value={formData.firstName} onChange={handleInputChange} placeholder="Rahul" style={styles.input} />
+                      </div>
+                      <div style={styles.inputWrap}>
+                        <label style={styles.inputLabel}>Last Name</label>
+                        <input type="text" name="lastName" value={formData.lastName} onChange={handleInputChange} placeholder="Sharma" style={styles.input} />
+                      </div>
+                      <div style={styles.inputWrap}>
+                        <label style={styles.inputLabel}>Gender</label>
+                        <select name="gender" value={formData.gender} onChange={handleInputChange} style={styles.input}>
+                          <option value="">Select</option>
+                          <option value="male">Male</option>
+                          <option value="female">Female</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      <div style={styles.inputWrap}>
+                        <label style={styles.inputLabel}>Date of Birth</label>
+                        <input type="date" name="dob" value={formData.dob} onChange={handleInputChange} style={styles.input} />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {step === 3 && (
+                  <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+                    <div style={styles.uploadArea}>
+                       <label style={styles.inputLabel}>Aadhaar Document</label>
+                       <div style={styles.dropZone}>
+                          <input type="file" id="aadhaar" hidden onChange={(e) => handleFileChange(e, 'aadhaarFile')} />
+                          <label htmlFor="aadhaar" style={styles.dropLabel}>
+                             {formData.aadhaarFile ? '✓ ' + formData.aadhaarFile.name : 'Click to Upload Document'}
+                          </label>
+                       </div>
+                    </div>
+                    <div style={{...styles.uploadArea, marginTop: '20px'}}>
+                       <label style={styles.inputLabel}>Profile Photo</label>
+                       <div style={styles.dropZone}>
+                          <input type="file" id="photo" hidden onChange={(e) => handleFileChange(e, 'photoFile')} />
+                          <label htmlFor="photo" style={styles.dropLabel}>
+                             {formData.photoFile ? '✓ Photo Ready' : 'Click to Upload Photo'}
+                          </label>
+                       </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {step === 4 && (
+                  <motion.div key="step4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+                     <div style={styles.inputWrap}>
+                        <label style={styles.inputLabel}>Phone Number</label>
+                        <div style={styles.phoneGroup}>
+                           <div style={styles.phonePrefix}>+91</div>
+                           <input 
+                            type="tel" 
+                            name="phone" 
+                            value={formData.phone} 
+                            onChange={handleInputChange} 
+                            placeholder="98765 43210" 
+                            style={styles.input} 
+                           />
+                        </div>
+                     </div>
+                  </motion.div>
+                )}
+
+                {step === 5 && (
+                  <motion.div key="step5" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={styles.finishArea}>
+                    <div style={styles.successIcon}>✓</div>
+                    <h2 style={styles.finishTitle}>Ready to Go!</h2>
+                    <p style={styles.finishText}>Your account information is ready. Click below to complete your registration.</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {error && <div style={styles.errorText}>{error}</div>}
+
+              <div style={styles.navButtons}>
+                {step > 1 && (
+                  <button onClick={handleBack} style={styles.backButton}>Back</button>
+                )}
+                {step < steps.length ? (
+                  <button onClick={handleNext} style={styles.nextButton}>Continue →</button>
+                ) : (
+                  <button onClick={handleSubmit} disabled={loading} style={styles.nextButton}>
+                    {loading ? 'Creating Account...' : 'Complete Signup'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <p style={styles.footerNote}>
+            Already have an account?{' '}
+            <span style={styles.loginLink} onClick={() => navigate('/login')}>Sign In</span>
           </p>
         </div>
-
-        {/* Main Card */}
-        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-3xl p-6 md:p-8 shadow-2xl">
-          {/* Role Selection (only on step 1) */}
-          {step === 1 && (
-            <div className="mb-8">
-              <label className="block text-sm font-medium text-gray-400 mb-3">
-                Select Role
-              </label>
-              <div className="grid grid-cols-2 gap-4">
-                {['admin', 'user'].map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setRole(r)}
-                    className={`p-4 rounded-xl border-2 transition-all ${
-                      role === r
-                        ? r === 'admin'
-                          ? 'border-pink-500 bg-pink-500/10'
-                          : 'border-indigo-500 bg-indigo-500/10'
-                        : 'border-gray-700 bg-gray-700/50'
-                    }`}
-                  >
-                    <div className="text-2xl mb-2">{r === 'admin' ? '👑' : '👤'}</div>
-                    <div className="font-semibold capitalize text-white mb-1">{r}</div>
-                    <div className="text-xs text-gray-400">
-                      {r === 'admin' ? 'Full access' : 'Standard access'}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Step Indicator */}
-          {step > 1 && step < 7 && renderStepIndicator()}
-
-          {/* Form Steps */}
-          <div className="space-y-6">
-            {/* Step 1: Personal Info */}
-            {step === 1 && (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                      First Name 
-                    </label>
-                    <input
-                      type="text"
-                      name="firstName"
-                      value={formData.firstName}
-                      onChange={handleInputChange}
-                      className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
-                      placeholder="Rahul"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                      Last Name
-                    </label>
-                    <input
-                      type="text"
-                      name="lastName"
-                      value={formData.lastName}
-                      onChange={handleInputChange}
-                      className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
-                      placeholder="Sharma"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                      Gender
-                    </label>
-                    <select
-                      name="gender"
-                      value={formData.gender}
-                      onChange={handleInputChange}
-                      className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
-                    >
-                      <option value="">Select</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-400 mb-2">
-                      Date of Birth
-                    </label>
-                    <input
-                      type="date"
-                      name="dob"
-                      value={formData.dob}
-                      onChange={handleInputChange}
-                      className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Step 2: Document Upload */}
-            {step === 2 && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">
-                    Aadhaar Document (PDF/Image)
-                  </label>
-                  <div className="border-2 border-dashed border-gray-600 rounded-xl p-6 text-center hover:border-indigo-500 transition-colors">
-                    <input
-                      type="file"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) => handleFileChange(e, 'aadhaarFile')}
-                      className="hidden"
-                      id="aadhaar-upload"
-                    />
-                    <label htmlFor="aadhaar-upload" className="cursor-pointer">
-                      <div className="text-3xl mb-2">📄</div>
-                      <p className="text-white font-medium mb-1">Click to upload</p>
-                      <p className="text-xs text-gray-400">PDF, JPG, PNG (max 5MB)</p>
-                      {formData.aadhaarFile && (
-                        <p className="text-green-400 text-sm mt-2">
-                          ✓ {formData.aadhaarFile.name}
-                        </p>
-                      )}
-                    </label>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-2">
-                    Profile Photo
-                  </label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="border-2 border-dashed border-gray-600 rounded-xl p-6 text-center hover:border-indigo-500 transition-colors">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        capture="user"
-                        onChange={(e) => handleFileChange(e, 'photoFile')}
-                        className="hidden"
-                        id="photo-upload"
-                      />
-                      <label htmlFor="photo-upload" className="cursor-pointer">
-                        <div className="text-3xl mb-2">📸</div>
-                        <p className="text-white font-medium mb-1">Upload/Capture</p>
-                        <p className="text-xs text-gray-400">Max 5MB</p>
-                        {formData.photoFile && (
-                          <p className="text-green-400 text-sm mt-2">✓ {formData.photoFile.name}</p>
-                        )}
-                      </label>
-                    </div>
-                    <div className="bg-gray-700/50 rounded-xl flex items-center justify-center p-4 border-2 border-gray-600">
-                      {formData.photoFile ? (
-                        <img
-                          src={URL.createObjectURL(formData.photoFile)}
-                          alt="Preview"
-                          className="w-24 h-24 rounded-lg object-cover"
-                        />
-                      ) : (
-                        <div className="text-center">
-                          <div className="text-3xl mb-1">🙂</div>
-                          <p className="text-xs text-gray-400">Preview</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Step 3: Phone Number */}
-            {step === 3 && (
-  <div>
-    <label className="block text-sm font-medium text-gray-400 mb-2">
-      Phone Number
-    </label>
-    <div className="flex">
-      <div className="flex items-center justify-center bg-gray-700/50 border border-r-0 border-gray-600 rounded-l-xl px-4 py-3 text-white">
-        <span className="text-gray-300">+91</span>
-      </div>
-      <input
-        type="tel"
-        name="phone"
-        value={formData.phone}
-        onChange={(e) => {
-          const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
-          if (value.length <= 10) {
-            setFormData(prev => ({ ...prev, phone: value }));
-          }
-        }}
-        onKeyPress={(e) => {
-          // Allow only numbers
-          if (!/[0-9]/.test(e.key)) {
-            e.preventDefault();
-          }
-        }}
-        className="w-full bg-gray-700/50 border border-gray-600 rounded-r-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
-        placeholder="98765 43210"
-        maxLength="10"
-        inputMode="numeric"
-        pattern="[0-9]*"
-      />
-    </div>
-    <p className="text-xs text-gray-400 mt-1">Enter 10-digit mobile number</p>
-  </div>
-)}
-
-            {/* Step 4: Phone OTP */}
-            {step === 4 && (
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Enter 6-digit OTP sent to {formData.phone}
-                </label>
-                <div className="flex gap-2 justify-center mb-4">
-                  {[...Array(6)].map((_, i) => (
-                    <input
-                      key={i}
-                      type="text"
-                      maxLength="1"
-                      className="w-12 h-14 bg-gray-700/50 border border-gray-600 rounded-xl text-center text-xl font-bold text-white focus:border-indigo-500 focus:outline-none"
-                      value={formData.phoneOtp[i] || ''}
-                      onChange={(e) => {
-                        const otp = formData.phoneOtp.split('');
-                        otp[i] = e.target.value.replace(/\D/g, '');
-                        setFormData((prev) => ({
-                          ...prev,
-                          phoneOtp: otp.join('').slice(0, 6),
-                        }));
-                        if (e.target.value && i < 5) {
-                          document.getElementById(`otp-${i + 1}`)?.focus();
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Backspace' && !formData.phoneOtp[i] && i > 0) {
-                          document.getElementById(`otp-${i - 1}`)?.focus();
-                        }
-                      }}
-                      id={`otp-${i}`}
-                    />
-                  ))}
-                </div>
-                <p className="text-center text-sm text-gray-400 mt-2">
-                  Didn't receive?{' '}
-                  <button className="text-indigo-400 hover:underline">Resend OTP</button>
-                </p>
-              </div>
-            )}
-
-            {/* Step 5: Email */}
-            {step === 5 && (
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
-                  placeholder="rahul@example.com"
-                />
-              </div>
-            )}
-
-            {/* Step 6: Email OTP */}
-            {step === 6 && (
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Enter 6-digit OTP sent to {formData.email}
-                </label>
-                <div className="flex gap-2 justify-center mb-4">
-                  {[...Array(6)].map((_, i) => (
-                    <input
-                      key={i}
-                      type="text"
-                      maxLength="1"
-                      className="w-12 h-14 bg-gray-700/50 border border-gray-600 rounded-xl text-center text-xl font-bold text-white focus:border-indigo-500 focus:outline-none"
-                      value={formData.emailOtp[i] || ''}
-                      onChange={(e) => {
-                        const otp = formData.emailOtp.split('');
-                        otp[i] = e.target.value.replace(/\D/g, '');
-                        setFormData((prev) => ({
-                          ...prev,
-                          emailOtp: otp.join('').slice(0, 6),
-                        }));
-                        if (e.target.value && i < 5) {
-                          document.getElementById(`email-otp-${i + 1}`)?.focus();
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Backspace' && !formData.emailOtp[i] && i > 0) {
-                          document.getElementById(`email-otp-${i - 1}`)?.focus();
-                        }
-                      }}
-                      id={`email-otp-${i}`}
-                    />
-                  ))}
-                </div>
-                <p className="text-center text-sm text-gray-400 mt-2">
-                  Didn't receive?{' '}
-                  <button className="text-indigo-400 hover:underline">Resend OTP</button>
-                </p>
-              </div>
-            )}
-
-            {/* Step 7: Completion */}
-            {step === 7 && (
-              <div className="text-center py-8">
-                <div className="text-6xl mb-4">🎉</div>
-                <h3 className="text-2xl font-bold text-white mb-2">Registration Complete!</h3>
-                <p className="text-gray-400 mb-6">
-                  {formData.firstName || 'User'} {formData.lastName} has been registered as{' '}
-                  <span className="font-semibold text-indigo-400 capitalize">{role}</span>
-                </p>
-                <div className="bg-gray-700/50 rounded-xl p-4 text-left space-y-2">
-                  {formData.email && (
-                    <p className="text-sm text-gray-300">
-                      <span className="text-gray-400">Email:</span> {formData.email}
-                    </p>
-                  )}
-                  {formData.phone && (
-                    <p className="text-sm text-gray-300">
-                      <span className="text-gray-400">Phone:</span> {formData.phone}
-                    </p>
-                  )}
-                  <p className="text-sm text-gray-300">
-                    <span className="text-gray-400">Documents:</span>{' '}
-                    {formData.aadhaarFile ? '✓ Aadhaar' : '✗ Aadhaar'},{' '}
-                    {formData.photoFile ? '✓ Photo' : '✗ Photo'}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Navigation Buttons */}
-          {step > 1 && step < 7 && (
-            <div className="flex gap-4 mt-8">
-              <button
-                onClick={handleBack}
-                className="flex-1 px-6 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white font-medium hover:bg-gray-700 transition-colors"
-              >
-                ← Back
-              </button>
-              <button
-                onClick={step === 6 ? handleSubmit : handleNext}
-                className={`flex-1 px-6 py-3 rounded-xl text-white font-medium transition-all ${
-                  role === 'admin'
-                    ? 'bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700'
-                    : 'bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700'
-                }`}
-              >
-                {step === 6 ? 'Complete Registration' : 'Continue →'}
-              </button>
-            </div>
-          )}
-
-          {/* Next button for step 1 */}
-          {step === 1 && (
-            <button
-              onClick={() => setStep(2)}
-              className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-indigo-500 to-pink-500 rounded-xl text-white font-medium hover:from-indigo-600 hover:to-pink-600 transition-all"
-            >
-              Next: Personal Details →
-            </button>
-          )}
-        </div>
-
-        {/* Login Link */}
-        <p className="text-center text-gray-400 text-sm mt-6">
-          Already have an account?{' '}
-          <a href="#" className="text-indigo-400 hover:underline">
-            Sign In
-          </a>
-        </p>
       </div>
 
-      {/* Toast Notification */}
       {toast.show && (
-        <div className="fixed bottom-6 right-6 bg-gray-800 border-l-4 border-green-500 rounded-lg shadow-2xl p-4 flex items-center gap-3 animate-slide-in">
-          <span className="text-2xl">✅</span>
-          <div>
-            <p className="font-semibold text-white">Notification</p>
-            <p className="text-sm text-gray-300">{toast.message}</p>
-          </div>
+        <div style={styles.toast}>
+          {toast.message}
         </div>
       )}
-    </div>
+
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Bebas+Neue&display=swap');
+        * { box-sizing: border-box; }
+        body { background: #080808; color: #e8e4dc; font-family: 'DM Sans', sans-serif; margin: 0; }
+        input:focus, select:focus {
+          border-color: #f97316 !important;
+          outline: none;
+          background: rgba(255,255,255,0.05) !important;
+        }
+      `}</style>
+    </>
   );
 };
 
-export default SecureIdRegistration;
+const styles = {
+  bgGrid: { position: 'fixed', inset: 0, zIndex: 0, backgroundImage: 'linear-gradient(rgba(249,115,22,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(249,115,22,0.03) 1px, transparent 1px)', backgroundSize: '50px 50px' },
+  noise: { position: 'fixed', inset: 0, zIndex: 1, opacity: 0.015, backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.7'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")" },
+  container: { position: 'relative', zIndex: 2, minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '40px 20px' },
+  backBtn: { position: 'absolute', top: '32px', left: '32px', background: 'none', border: '1px solid rgba(255,255,255,0.1)', color: '#777', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' },
+  mainContent: { width: '100%', maxWidth: '640px' },
+  header: { textAlign: 'center', marginBottom: '32px' },
+  logoRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '16px' },
+  logoBox: { width: '32px', height: '32px', background: '#f97316', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: '#fff' },
+  appName: { fontFamily: "'Bebas Neue', cursive", fontSize: '24px', letterSpacing: '1px', color: '#f97316' },
+  title: { fontSize: '32px', fontWeight: 700, marginBottom: '12px' },
+  roleBadge: { display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: '20px', fontSize: '11px', fontWeight: 600, color: '#f97316', letterSpacing: '1px' },
+  dot: { width: '6px', height: '6px', background: '#f97316', borderRadius: '50%' },
+  card: { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '24px', padding: '32px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)', backdropFilter: 'blur(10px)' },
+  stepper: { display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '40px', gap: '8px' },
+  stepCircle: { width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold', transition: 'all 0.3s' },
+  stepLine: { height: '2px', width: '30px', transition: 'all 0.3s' },
+  formContent: { minHeight: '300px', display: 'flex', flexDirection: 'column' },
+  roleSelection: { marginBottom: '24px' },
+  sectionLabel: { fontSize: '14px', color: '#777', display: 'block', marginBottom: '12px' },
+  roleGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' },
+  roleCard: { padding: '20px', borderRadius: '16px', border: '1px solid', textAlign: 'center', cursor: 'pointer', transition: 'all 0.3s' },
+  roleIcon: { fontSize: '24px', display: 'block', marginBottom: '8px' },
+  roleName: { fontSize: '14px', fontWeight: 600 },
+  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' },
+  inputWrap: { display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' },
+  inputLabel: { fontSize: '13px', color: '#aaa', marginLeft: '4px' },
+  input: { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '14px', color: '#fff', fontSize: '14px' },
+  phoneGroup: { display: 'flex', gap: '10px' },
+  phonePrefix: { background: 'rgba(255,255,255,0.05)', padding: '14px', borderRadius: '12px', fontSize: '14px', color: '#777' },
+  dropZone: { border: '2px dashed rgba(255,255,255,0.1)', borderRadius: '16px', padding: '30px', textAlign: 'center', cursor: 'pointer' },
+  dropLabel: { cursor: 'pointer', color: '#aaa', fontSize: '14px' },
+  finishArea: { textAlign: 'center', padding: '20px' },
+  successIcon: { width: '64px', height: '64px', background: '#f97316', color: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', margin: '0 auto 20px' },
+  finishTitle: { fontSize: '24px', fontWeight: 'bold', marginBottom: '12px' },
+  finishText: { color: '#777', fontSize: '15px' },
+  navButtons: { marginTop: 'auto', display: 'flex', gap: '12px', paddingTop: '32px' },
+  backButton: { flex: 1, padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'none', color: '#fff', cursor: 'pointer' },
+  nextButton: { flex: 2, padding: '16px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #f97316, #ea580c)', color: '#fff', fontWeight: 'bold', cursor: 'pointer' },
+  errorText: { color: '#ef4444', fontSize: '13px', marginTop: '12px', textAlign: 'center' },
+  footerNote: { textAlign: 'center', marginTop: '24px', color: '#555', fontSize: '14px' },
+  loginLink: { color: '#f97316', fontWeight: 600, cursor: 'pointer', marginLeft: '6px' },
+  toast: { position: 'fixed', bottom: '24px', right: '24px', background: '#f97316', color: '#fff', padding: '12px 24px', borderRadius: '12px', boxShadow: '0 10px 30px rgba(249,115,22,0.3)', fontWeight: 600 }
+};
+
+export default SignUp;
