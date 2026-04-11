@@ -1,6 +1,58 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
+import { hasSupabaseConfig, supabase } from '../lib/supabaseClient';
+import { getDashboardRouteForRole, isMissingProfilesTableError } from '../lib/profileHelpers';
+
+// State → Cities mapping for India
+const stateCities = {
+  'Andhra Pradesh': ['Visakhapatnam', 'Vijayawada', 'Guntur', 'Nellore', 'Kurnool', 'Tirupati', 'Rajahmundry', 'Kakinada', 'Kadapa', 'Anantapur'],
+  'Arunachal Pradesh': ['Itanagar', 'Naharlagun', 'Pasighat', 'Tawang', 'Ziro', 'Bomdila', 'Along', 'Tezu', 'Roing', 'Changlang'],
+  'Assam': ['Guwahati', 'Silchar', 'Dibrugarh', 'Jorhat', 'Nagaon', 'Tinsukia', 'Tezpur', 'Bongaigaon', 'Karimganj', 'Goalpara'],
+  'Bihar': ['Patna', 'Gaya', 'Bhagalpur', 'Muzaffarpur', 'Darbhanga', 'Purnia', 'Arrah', 'Begusarai', 'Katihar', 'Munger'],
+  'Chhattisgarh': ['Raipur', 'Bhilai', 'Bilaspur', 'Korba', 'Durg', 'Rajnandgaon', 'Raigarh', 'Jagdalpur', 'Ambikapur', 'Dhamtari'],
+  'Goa': ['Panaji', 'Margao', 'Vasco da Gama', 'Mapusa', 'Ponda', 'Bicholim', 'Curchorem', 'Sanquelim', 'Canacona', 'Quepem'],
+  'Gujarat': ['Ahmedabad', 'Surat', 'Vadodara', 'Rajkot', 'Bhavnagar', 'Jamnagar', 'Junagadh', 'Gandhinagar', 'Anand', 'Nadiad'],
+  'Haryana': ['Gurugram', 'Faridabad', 'Panipat', 'Ambala', 'Karnal', 'Hisar', 'Rohtak', 'Sonipat', 'Yamunanagar', 'Panchkula'],
+  'Himachal Pradesh': ['Shimla', 'Manali', 'Dharamshala', 'Solan', 'Mandi', 'Kullu', 'Bilaspur', 'Hamirpur', 'Una', 'Nahan'],
+  'Jharkhand': ['Ranchi', 'Jamshedpur', 'Dhanbad', 'Bokaro', 'Deoghar', 'Hazaribagh', 'Giridih', 'Ramgarh', 'Phusro', 'Medininagar'],
+  'Karnataka': ['Bengaluru', 'Mysuru', 'Mangaluru', 'Hubballi', 'Belagavi', 'Kalaburagi', 'Davanagere', 'Ballari', 'Shimoga', 'Tumkur'],
+  'Kerala': ['Thiruvananthapuram', 'Kochi', 'Kozhikode', 'Thrissur', 'Kollam', 'Palakkad', 'Alappuzha', 'Kannur', 'Kottayam', 'Malappuram'],
+  'Madhya Pradesh': ['Bhopal', 'Indore', 'Jabalpur', 'Gwalior', 'Ujjain', 'Sagar', 'Dewas', 'Satna', 'Ratlam', 'Rewa'],
+  'Maharashtra': ['Mumbai', 'Pune', 'Nagpur', 'Thane', 'Nashik', 'Aurangabad', 'Solapur', 'Kolhapur', 'Amravati', 'Navi Mumbai'],
+  'Manipur': ['Imphal', 'Thoubal', 'Bishnupur', 'Churachandpur', 'Kakching', 'Senapati', 'Ukhrul', 'Tamenglong', 'Chandel', 'Jiribam'],
+  'Meghalaya': ['Shillong', 'Tura', 'Jowai', 'Nongpoh', 'Williamnagar', 'Baghmara', 'Resubelpara', 'Mairang', 'Nongstoin', 'Khliehriat'],
+  'Mizoram': ['Aizawl', 'Lunglei', 'Champhai', 'Serchhip', 'Kolasib', 'Lawngtlai', 'Saiha', 'Mamit', 'Hnahthial', 'Saitual'],
+  'Nagaland': ['Kohima', 'Dimapur', 'Mokokchung', 'Tuensang', 'Wokha', 'Zunheboto', 'Mon', 'Phek', 'Longleng', 'Peren'],
+  'Odisha': ['Bhubaneswar', 'Cuttack', 'Rourkela', 'Berhampur', 'Sambalpur', 'Puri', 'Balasore', 'Baripada', 'Bhadrak', 'Jharsuguda'],
+  'Punjab': ['Ludhiana', 'Amritsar', 'Jalandhar', 'Patiala', 'Bathinda', 'Mohali', 'Pathankot', 'Hoshiarpur', 'Moga', 'Phagwara'],
+  'Rajasthan': ['Jaipur', 'Jodhpur', 'Udaipur', 'Kota', 'Ajmer', 'Bikaner', 'Alwar', 'Bharatpur', 'Sikar', 'Bhilwara'],
+  'Sikkim': ['Gangtok', 'Namchi', 'Gyalshing', 'Mangan', 'Rangpo', 'Singtam', 'Jorethang', 'Ravangla', 'Pelling', 'Lachung'],
+  'Tamil Nadu': ['Chennai', 'Coimbatore', 'Madurai', 'Tiruchirappalli', 'Salem', 'Tirunelveli', 'Erode', 'Vellore', 'Thanjavur', 'Thoothukudi'],
+  'Telangana': ['Hyderabad', 'Warangal', 'Nizamabad', 'Karimnagar', 'Khammam', 'Mahbubnagar', 'Ramagundam', 'Nalgonda', 'Adilabad', 'Suryapet'],
+  'Tripura': ['Agartala', 'Udaipur', 'Dharmanagar', 'Kailashahar', 'Belonia', 'Ambassa', 'Khowai', 'Sabroom', 'Sonamura', 'Kumarghat'],
+  'Uttar Pradesh': ['Lucknow', 'Kanpur', 'Agra', 'Varanasi', 'Prayagraj', 'Meerut', 'Noida', 'Ghaziabad', 'Bareilly', 'Aligarh'],
+  'Uttarakhand': ['Dehradun', 'Haridwar', 'Rishikesh', 'Haldwani', 'Roorkee', 'Kashipur', 'Rudrapur', 'Nainital', 'Mussoorie', 'Pithoragarh'],
+  'West Bengal': ['Kolkata', 'Howrah', 'Durgapur', 'Asansol', 'Siliguri', 'Bardhaman', 'Malda', 'Kharagpur', 'Haldia', 'Kalyani'],
+  'Delhi': ['New Delhi', 'Dwarka', 'Rohini', 'Saket', 'Janakpuri', 'Lajpat Nagar', 'Connaught Place', 'Karol Bagh', 'Pitampura', 'Vasant Kunj'],
+  'Chandigarh': ['Chandigarh'],
+  'Puducherry': ['Puducherry', 'Karaikal', 'Mahe', 'Yanam'],
+  'Jammu & Kashmir': ['Srinagar', 'Jammu', 'Anantnag', 'Baramulla', 'Sopore', 'Kathua', 'Udhampur', 'Rajouri', 'Poonch', 'Kupwara'],
+  'Ladakh': ['Leh', 'Kargil', 'Diskit', 'Padum', 'Nyoma'],
+};
+
+const formatSupabaseError = (error) => {
+  const rawMessage = error?.message || 'Something went wrong during signup.';
+
+  if (rawMessage === 'Failed to fetch') {
+    return 'Unable to reach Supabase. Check your internet, Frontend/.env values, and make sure no extension or firewall is blocking the request.';
+  }
+
+  if (rawMessage.toLowerCase().includes('email not confirmed')) {
+    return 'Your account was created, but email confirmation is required before dashboard access.';
+  }
+
+  return rawMessage;
+};
 
 const SecureIdRegistration = () => {
   const navigate = useNavigate();
@@ -15,19 +67,25 @@ const SecureIdRegistration = () => {
     dob: '',
     aadhaarFile: null,
     photoFile: null,
+    address: '',
+    city: '',
+    state: '',
+    pincode: '',
     phone: '',
-    phoneOtp: '',
     email: '',
     password: '',
     confirmPassword: '',
-    emailOtp: '',
   });
-  const [otpSent, setOtpSent] = useState({ phone: false, email: false });
   const [toast, setToast] = useState({ show: false, message: '' });
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleStateChange = (e) => {
+    const selectedState = e.target.value;
+    setFormData((prev) => ({ ...prev, state: selectedState, city: '' }));
   };
 
   const handleFileChange = (e, field) => {
@@ -40,57 +98,25 @@ const SecureIdRegistration = () => {
     setFormData((prev) => ({ ...prev, [field]: file }));
   };
 
-  const handleNext = async () => {
-    if (step === 3) {
-      if (!formData.phone || formData.phone.length < 10) {
-        setToast({ show: true, message: '⚠️ Please enter a valid 10-digit phone number.' });
-        setTimeout(() => setToast({ show: false, message: '' }), 3000);
-        return;
-      }
-      try {
-        const { error } = await supabase.auth.signInWithOtp({
-          phone: '+91' + formData.phone.slice(-10),
-        });
-        if (error) throw error;
-        setToast({ show: true, message: '📱 OTP sent to your phone!' });
-        setTimeout(() => setToast({ show: false, message: '' }), 3000);
-      } catch (err) {
-        // SMS provider not configured — use demo bypass
-        setToast({
-          show: true,
-          message: '📵 SMS not configured. Use 123456 as OTP to continue (demo mode).',
-        });
-        setTimeout(() => setToast({ show: false, message: '' }), 5000);
-        // Still proceed to OTP entry screen so user can use the bypass
-      }
-    } else if (step === 4) {
-      if (formData.phoneOtp !== '123456') {
-        try {
-          const { error } = await supabase.auth.verifyOtp({
-            phone: '+91' + formData.phone,
-            token: formData.phoneOtp,
-            type: 'sms',
-          });
-          if (error) throw error;
-        } catch (err) {
-          setToast({ show: true, message: `❌ Invalid OTP: ${err.message}. Use 123456 to bypass in demo mode.` });
-          setTimeout(() => setToast({ show: false, message: '' }), 4000);
-          return; // Block from proceeding if invalid and not bypass
-        }
-      }
-    }
+  const handleNext = () => {
     setStep((prev) => prev + 1);
   };
 
   const handleBack = () => setStep((prev) => prev - 1);
 
   const handleSubmit = async () => {
-    // Validate passwords
+    if (!hasSupabaseConfig || !supabase) {
+      setToast({ show: true, message: '❌ Supabase environment variables are missing in Frontend/.env.' });
+      setTimeout(() => setToast({ show: false, message: '' }), 4000);
+      return;
+    }
+
     if (formData.password.length < 8) {
       setToast({ show: true, message: '❌ Password must be at least 8 characters.' });
       setTimeout(() => setToast({ show: false, message: '' }), 4000);
       return;
     }
+
     if (formData.password !== formData.confirmPassword) {
       setToast({ show: true, message: '❌ Passwords do not match. Please try again.' });
       setTimeout(() => setToast({ show: false, message: '' }), 4000);
@@ -98,78 +124,146 @@ const SecureIdRegistration = () => {
     }
 
     try {
-      // 1️⃣ Create the auth user
+      const profilePayload = {
+        first_name: formData.firstName.trim(),
+        last_name: formData.lastName.trim(),
+        gender: formData.gender || null,
+        dob: formData.dob || null,
+        phone: formData.phone.trim(),
+        email: formData.email.trim().toLowerCase(),
+        address: formData.address.trim(),
+        city: formData.city.trim(),
+        state: formData.state.trim(),
+        pincode: formData.pincode.trim(),
+        role,
+      };
+
+      if (!profilePayload.first_name || !profilePayload.email || !profilePayload.phone) {
+        throw new Error('First name, email, and phone number are required.');
+      }
+
       const { data, error } = await supabase.auth.signUp({
-        email: formData.email,
+        email: profilePayload.email,
         password: formData.password,
         options: {
           data: {
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            role: role,
-            phone: formData.phone,
+            first_name: profilePayload.first_name,
+            last_name: profilePayload.last_name,
+            role: profilePayload.role,
+            phone: profilePayload.phone,
+            city: profilePayload.city,
+            state: profilePayload.state,
+            pincode: profilePayload.pincode,
+            address: profilePayload.address,
+            dob: profilePayload.dob,
+            gender: profilePayload.gender,
           },
         },
       });
+
       if (error) throw error;
 
       const userId = data.user?.id;
+      if (!userId) {
+        throw new Error('Supabase did not return a user id during signup.');
+      }
 
-      // 2️⃣ Upload Aadhaar to Supabase Storage (if provided)
+      let session = data.session ?? null;
       let aadhaarUrl = null;
-      if (formData.aadhaarFile && userId) {
+      let photoUrl = null;
+
+      if (formData.aadhaarFile) {
         const ext = formData.aadhaarFile.name.split('.').pop();
         const path = `aadhaar/${userId}.${ext}`;
         const { error: uploadErr } = await supabase.storage
           .from('user-documents')
           .upload(path, formData.aadhaarFile, { upsert: true });
+
         if (!uploadErr) {
           const { data: urlData } = supabase.storage.from('user-documents').getPublicUrl(path);
           aadhaarUrl = urlData?.publicUrl ?? null;
         }
       }
 
-      // 3️⃣ Upload Photo to Supabase Storage (if provided)
-      let photoUrl = null;
-      if (formData.photoFile && userId) {
+      if (formData.photoFile) {
         const ext = formData.photoFile.name.split('.').pop();
         const path = `photos/${userId}.${ext}`;
         const { error: uploadErr } = await supabase.storage
           .from('user-documents')
           .upload(path, formData.photoFile, { upsert: true });
+
         if (!uploadErr) {
           const { data: urlData } = supabase.storage.from('user-documents').getPublicUrl(path);
           photoUrl = urlData?.publicUrl ?? null;
         }
       }
 
-      // 4️⃣ Insert profile data into the profiles table
-      if (userId) {
-        const { error: profileError } = await supabase.from('profiles').insert({
-          id: userId,
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          gender: formData.gender,
-          dob: formData.dob || null,
-          phone: formData.phone,
-          email: formData.email,
-          role: role,
-          aadhaar_url: aadhaarUrl,
-          photo_url: photoUrl,
+      const { error: profileError } = await supabase.from('profiles').upsert({
+        id: userId,
+        ...profilePayload,
+        aadhaar_url: aadhaarUrl,
+        photo_url: photoUrl,
+      }, {
+        onConflict: 'id',
+      });
+
+      const profileTableMissing = isMissingProfilesTableError(profileError);
+      if (profileError && !profileTableMissing) throw profileError;
+
+      if (!session) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: profilePayload.email,
+          password: formData.password,
         });
-        if (profileError) {
-          console.warn('Profile insert warning:', profileError.message);
+
+        if (!signInError) {
+          session = signInData.session ?? null;
         }
       }
 
-      setToast({ show: true, message: `🎉 ${role} registered! Check your email to confirm.` });
+      localStorage.setItem('userRole', role);
+      localStorage.setItem('user', JSON.stringify({
+        id: userId,
+        email: profilePayload.email,
+        first_name: profilePayload.first_name,
+        last_name: profilePayload.last_name,
+        phone: profilePayload.phone,
+        city: profilePayload.city,
+        state: profilePayload.state,
+        pincode: profilePayload.pincode,
+        address: profilePayload.address,
+        role,
+        photo_url: photoUrl,
+        aadhaar_url: aadhaarUrl,
+      }));
+
+      if (session) {
+        setToast({
+          show: true,
+          message: profileTableMissing
+            ? '🎉 Account created in Supabase Auth. Run Database/supabase-schema.sql to enable full profile storage, then you can continue.'
+            : `🎉 ${role === 'landOwner' ? 'Land Owner' : 'User'} registered successfully.`,
+        });
+        setTimeout(() => {
+          setToast({ show: false, message: '' });
+          navigate(getDashboardRouteForRole(role));
+        }, 1800);
+        return;
+      }
+
+      setToast({
+        show: true,
+        message: profileTableMissing
+          ? '🎉 Account created in Supabase Auth. Run Database/supabase-schema.sql, then sign in to open the dashboard.'
+          : '🎉 Account created and saved in Supabase. Confirm your email, then sign in to open the dashboard.',
+      });
       setTimeout(() => {
         setToast({ show: false, message: '' });
-        navigate('/dashboard');
+        navigate('/auth/login');
       }, 3000);
     } catch (err) {
-      setToast({ show: true, message: `❌ Error: ${err.message}` });
-      setTimeout(() => setToast({ show: false, message: '' }), 4000);
+      setToast({ show: true, message: `❌ Error: ${formatSupabaseError(err)}` });
+      setTimeout(() => setToast({ show: false, message: '' }), 5000);
     }
   };
 
@@ -177,8 +271,7 @@ const SecureIdRegistration = () => {
     const steps = [
       'Personal',
       'Documents',
-      'Phone',
-      'Verify Phone',
+      'Address',
       'Account',
       'Complete',
     ];
@@ -220,10 +313,10 @@ const SecureIdRegistration = () => {
             </span>
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">
-            {step === 1 ? 'Create Account' : `Step ${step} of 7`}
+            {step === 1 ? 'Create Account' : `Step ${step} of 6`}
           </h1>
           <p className="text-gray-400">
-            {role === 'admin' ? '👑 Admin' : '👤 User'} registration
+            {role === 'landOwner' ? '🏠 Land Owner' : '👤 User'} registration
           </p>
         </div>
 
@@ -236,22 +329,22 @@ const SecureIdRegistration = () => {
                 Select Role
               </label>
               <div className="grid grid-cols-2 gap-4">
-                {['admin', 'user'].map((r) => (
+                {['user', 'landOwner'].map((r) => (
                   <button
                     key={r}
                     onClick={() => setRole(r)}
                     className={`p-4 rounded-xl border-2 transition-all ${
                       role === r
-                        ? r === 'admin'
-                          ? 'border-pink-500 bg-pink-500/10'
+                        ? r === 'landOwner'
+                          ? 'border-amber-500 bg-amber-500/10'
                           : 'border-indigo-500 bg-indigo-500/10'
                         : 'border-gray-700 bg-gray-700/50'
                     }`}
                   >
-                    <div className="text-2xl mb-2">{r === 'admin' ? '👑' : '👤'}</div>
-                    <div className="font-semibold capitalize text-white mb-1">{r}</div>
+                    <div className="text-2xl mb-2">{r === 'landOwner' ? '🏠' : '👤'}</div>
+                    <div className="font-semibold text-white mb-1">{r === 'landOwner' ? 'Land Owner' : 'User'}</div>
                     <div className="text-xs text-gray-400">
-                      {r === 'admin' ? 'Full access' : 'Standard access'}
+                      {r === 'landOwner' ? 'List & manage parking spots' : 'Find & book parking'}
                     </div>
                   </button>
                 ))}
@@ -260,7 +353,7 @@ const SecureIdRegistration = () => {
           )}
 
           {/* Step Indicator */}
-          {step > 1 && step < 6 && renderStepIndicator()}
+          {step > 1 && step < 5 && renderStepIndicator()}
 
           {/* Form Steps */}
           <div className="space-y-6">
@@ -397,86 +490,86 @@ const SecureIdRegistration = () => {
               </>
             )}
 
-            {/* Step 3: Phone Number */}
-            {step === 3 && (
-  <div>
-    <label className="block text-sm font-medium text-gray-400 mb-2">
-      Phone Number
-    </label>
-    <div className="flex">
-      <div className="flex items-center justify-center bg-gray-700/50 border border-r-0 border-gray-600 rounded-l-xl px-4 py-3 text-white">
-        <span className="text-gray-300">+91</span>
-      </div>
-      <input
-        type="tel"
-        name="phone"
-        value={formData.phone}
-        onChange={(e) => {
-          const value = e.target.value.replace(/\D/g, ''); // Remove non-digits
-          if (value.length <= 10) {
-            setFormData(prev => ({ ...prev, phone: value }));
-          }
-        }}
-        onKeyPress={(e) => {
-          // Allow only numbers
-          if (!/[0-9]/.test(e.key)) {
-            e.preventDefault();
-          }
-        }}
-        className="w-full bg-gray-700/50 border border-gray-600 rounded-r-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
-        placeholder="98765 43210"
-        maxLength="10"
-        inputMode="numeric"
-        pattern="[0-9]*"
-      />
-    </div>
-    <p className="text-xs text-gray-400 mt-1">Enter 10-digit mobile number</p>
-  </div>
-)}
 
-            {/* Step 4: Phone OTP */}
-            {step === 4 && (
-              <div>
-                <label className="block text-sm font-medium text-gray-400 mb-2">
-                  Enter 6-digit OTP sent to {formData.phone}
-                </label>
-                <div className="flex gap-2 justify-center mb-4">
-                  {[...Array(6)].map((_, i) => (
-                    <input
-                      key={i}
-                      type="text"
-                      maxLength="1"
-                      className="w-12 h-14 bg-gray-700/50 border border-gray-600 rounded-xl text-center text-xl font-bold text-white focus:border-indigo-500 focus:outline-none"
-                      value={formData.phoneOtp[i] || ''}
-                      onChange={(e) => {
-                        const otp = formData.phoneOtp.split('');
-                        otp[i] = e.target.value.replace(/\D/g, '');
-                        setFormData((prev) => ({
-                          ...prev,
-                          phoneOtp: otp.join('').slice(0, 6),
-                        }));
-                        if (e.target.value && i < 5) {
-                          document.getElementById(`otp-${i + 1}`)?.focus();
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Backspace' && !formData.phoneOtp[i] && i > 0) {
-                          document.getElementById(`otp-${i - 1}`)?.focus();
-                        }
-                      }}
-                      id={`otp-${i}`}
-                    />
-                  ))}
+            {/* Step 3: Address */}
+            {step === 3 && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    State
+                  </label>
+                  <select
+                    name="state"
+                    value={formData.state}
+                    onChange={handleStateChange}
+                    className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
+                  >
+                    <option value="">Select State</option>
+                    {Object.keys(stateCities).map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
                 </div>
-                <p className="text-center text-sm text-gray-400 mt-2">
-                  Didn't receive?{' '}
-                  <button className="text-indigo-400 hover:underline">Resend OTP</button>
-                </p>
-              </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      City
+                    </label>
+                    <select
+                      name="city"
+                      value={formData.city}
+                      onChange={handleInputChange}
+                      disabled={!formData.state}
+                      className={`w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none ${
+                        !formData.state ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                    >
+                      <option value="">{formData.state ? 'Select City' : 'Select state first'}</option>
+                      {formData.state && stateCities[formData.state]?.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">
+                      Pincode
+                    </label>
+                    <input
+                      type="text"
+                      name="pincode"
+                      value={formData.pincode}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '');
+                        if (value.length <= 6) {
+                          setFormData(prev => ({ ...prev, pincode: value }));
+                        }
+                      }}
+                      className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
+                      placeholder="400001"
+                      maxLength="6"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Street Address
+                  </label>
+                  <input
+                    type="text"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
+                    placeholder="123, MG Road, Near Central Mall"
+                  />
+                </div>
+              </>
             )}
 
-            {/* Step 5: Email & Password */}
-            {step === 5 && (
+            {/* Step 4: Account (Email, Phone & Password) */}
+            {step === 4 && (
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-400 mb-2">
@@ -490,6 +583,34 @@ const SecureIdRegistration = () => {
                     className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
                     placeholder="rahul@example.com"
                   />
+                </div>
+
+                {/* Phone Number */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 mb-2">
+                    Phone Number
+                  </label>
+                  <div className="flex">
+                    <div className="flex items-center justify-center bg-gray-700/50 border border-r-0 border-gray-600 rounded-l-xl px-4 py-3 text-white">
+                      <span className="text-gray-300">+91</span>
+                    </div>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '');
+                        if (value.length <= 10) {
+                          setFormData(prev => ({ ...prev, phone: value }));
+                        }
+                      }}
+                      className="w-full bg-gray-700/50 border border-gray-600 rounded-r-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
+                      placeholder="98765 43210"
+                      maxLength="10"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                    />
+                  </div>
                 </div>
 
                 {/* Password */}
@@ -564,8 +685,8 @@ const SecureIdRegistration = () => {
               </div>
             )}
 
-            {/* Step 6: Completion */}
-            {step === 6 && (
+            {/* Step 5: Completion */}
+            {step === 5 && (
               <div className="text-center py-8">
                 <div className="text-6xl mb-4">🎉</div>
                 <h3 className="text-2xl font-bold text-white mb-2">Registration Complete!</h3>
@@ -584,6 +705,12 @@ const SecureIdRegistration = () => {
                       <span className="text-gray-400">Phone:</span> {formData.phone}
                     </p>
                   )}
+                  {(formData.address || formData.city) && (
+                    <p className="text-sm text-gray-300">
+                      <span className="text-gray-400">Address:</span>{' '}
+                      {[formData.address, formData.city, formData.state, formData.pincode].filter(Boolean).join(', ')}
+                    </p>
+                  )}
                   <p className="text-sm text-gray-300">
                     <span className="text-gray-400">Documents:</span>{' '}
                     {formData.aadhaarFile ? '✓ Aadhaar' : '✗ Aadhaar'},{' '}
@@ -595,7 +722,7 @@ const SecureIdRegistration = () => {
           </div>
 
           {/* Navigation Buttons */}
-          {step > 1 && step < 6 && (
+          {step > 1 && step < 5 && (
             <div className="flex gap-4 mt-8">
               <button
                 onClick={handleBack}
@@ -604,14 +731,14 @@ const SecureIdRegistration = () => {
                 ← Back
               </button>
               <button
-                onClick={step === 5 ? handleSubmit : handleNext}
+                onClick={step === 4 ? handleSubmit : handleNext}
                 className={`flex-1 px-6 py-3 rounded-xl text-white font-medium transition-all ${
-                  role === 'admin'
-                    ? 'bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700'
+                  role === 'landOwner'
+                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700'
                     : 'bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700'
                 }`}
               >
-                {step === 5 ? 'Complete Registration' : 'Continue →'}
+                {step === 4 ? 'Complete Registration' : 'Continue →'}
               </button>
             </div>
           )}

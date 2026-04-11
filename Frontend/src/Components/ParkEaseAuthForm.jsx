@@ -117,7 +117,7 @@ const ParkEaseAuthForm = ({ type }) => {
           localStorage.setItem("user", JSON.stringify({ ...data.user, name: formData.name, role: formData.role }));
           localStorage.setItem("userRole", formData.role);
           showToast(`Account created as ${formData.role === 'driver' ? 'Driver' : 'Land Owner'}! 🎉`);
-          setTimeout(() => navigate("/dashboard"), 1500);
+          setTimeout(() => navigate(formData.role === 'driver' ? '/dashboard/user' : '/dashboard/landowner'), 1500);
         }
       } catch (err) {
         const msg = err.message || "Sign-up failed";
@@ -166,10 +166,18 @@ const ParkEaseAuthForm = ({ type }) => {
       if (error) throw error;
 
       if (data?.user) {
-        localStorage.setItem("user", JSON.stringify({ ...data.user, role: formData.role }));
-        localStorage.setItem("userRole", formData.role);
+        // Fetch role from Supabase profiles
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role, first_name, last_name')
+          .eq('id', data.user.id)
+          .single();
+
+        const role = profile?.role || 'user';
+        localStorage.setItem("user", JSON.stringify({ ...data.user, role }));
+        localStorage.setItem("userRole", role);
         showToast("Welcome back! 👋");
-        setTimeout(() => navigate("/dashboard"), 1500);
+        setTimeout(() => navigate(role === 'landOwner' ? '/dashboard/landowner' : '/dashboard/user'), 1500);
       }
     } catch (err) {
       const msg = err.message || "Authentication failed";

@@ -9,10 +9,7 @@ const SecureRegistration = ({ selectedRole, onComplete, onBack }) => {
     dob: "",
     aadhaarFile: null,
     photoFile: null,
-    phone: "",
-    phoneOtp: "",
     email: "",
-    emailOtp: "",
   });
   const [toast, setToast] = useState({ show: false, message: "" });
   const [loading, setLoading] = useState(false);
@@ -137,11 +134,6 @@ const SecureRegistration = ({ selectedRole, onComplete, onBack }) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handlePhoneChange = (e) => {
-    const val = e.target.value.replace(/\D/g, "").slice(0, 10);
-    setFormData((prev) => ({ ...prev, phone: val }));
-  };
-
   const handleFileChange = (e, field) => {
     const file = e.target.files[0];
     if (file && file.size > 5 * 1024 * 1024) {
@@ -149,26 +141,6 @@ const SecureRegistration = ({ selectedRole, onComplete, onBack }) => {
       return;
     }
     setFormData((prev) => ({ ...prev, [field]: file }));
-  };
-
-  const sendPhoneOtp = () => {
-    if (formData.phone.length === 10) {
-      showToast(`📱 OTP sent to +91 ${formData.phone} (demo: 123456)`);
-      return true;
-    } else {
-      showToast("Enter valid 10-digit phone number");
-      return false;
-    }
-  };
-
-  const sendEmailOtp = () => {
-    if (formData.email.includes("@") && formData.email.includes(".")) {
-      showToast(`📧 OTP sent to ${formData.email} (demo: 123456)`);
-      return true;
-    } else {
-      showToast("Enter valid email address");
-      return false;
-    }
   };
 
   const handleNext = () => {
@@ -201,48 +173,16 @@ const SecureRegistration = ({ selectedRole, onComplete, onBack }) => {
       return;
     }
 
-    // Step 3: Phone validation and OTP send
+    // Step 3: Email validation and final submission
     if (step === 3) {
-      if (formData.phone.length !== 10) {
-        showToast("Enter 10-digit phone number");
-        return;
-      }
-      sendPhoneOtp();
-      setStep(4);
-      return;
-    }
-
-    // Step 4: Phone OTP validation
-    if (step === 4) {
-      if (formData.phoneOtp !== "123456") {
-        showToast("Invalid OTP (demo: 123456)");
-        return;
-      }
-      setStep(5);
-      return;
-    }
-
-    // Step 5: Email validation and OTP send
-    if (step === 5) {
       if (!formData.email.includes("@") || !formData.email.includes(".")) {
         showToast("Enter valid email");
-        return;
-      }
-      sendEmailOtp();
-      setStep(6);
-      return;
-    }
-
-    // Step 6: Email OTP validation and final submission
-    if (step === 6) {
-      if (formData.emailOtp !== "123456") {
-        showToast("Invalid OTP (demo: 123456)");
         return;
       }
       setLoading(true);
       setTimeout(() => {
         setLoading(false);
-        setStep(7);
+        setStep(4);
         launchConfetti();
         showToast(
           `🎉 ${selectedRole === "owner" ? "Owner" : "Driver"} registered successfully!`
@@ -274,12 +214,9 @@ const SecureRegistration = ({ selectedRole, onComplete, onBack }) => {
     const stepsArr = [
       "Personal",
       "Documents",
-      "Phone",
-      "Verify Phone",
       "Email",
-      "Verify Email",
     ];
-    if (step >= 1 && step <= 6) {
+    if (step >= 1 && step <= 3) {
       return (
         <div className="flex justify-center items-center gap-2 mb-6 flex-wrap">
           {stepsArr.map((label, idx) => {
@@ -309,8 +246,8 @@ const SecureRegistration = ({ selectedRole, onComplete, onBack }) => {
     return null;
   };
 
-  // Success Screen (Step 7)
-  if (step === 7) {
+  // Success Screen (Step 4)
+  if (step === 4) {
     const isOwner = selectedRole === "owner";
     return (
       <>
@@ -539,70 +476,6 @@ const SecureRegistration = ({ selectedRole, onComplete, onBack }) => {
         return (
           <div>
             <label className="text-gray-400 text-sm block mb-1">
-              Phone Number
-            </label>
-            <div className="flex mt-1">
-              <span className="bg-gray-800 border border-r-0 border-gray-700 rounded-l-xl px-4 py-3 flex items-center text-white">
-                +91
-              </span>
-              <input
-                type="tel"
-                value={formData.phone}
-                onChange={handlePhoneChange}
-                className="flex-1 bg-gray-900/60 border border-gray-700 rounded-r-xl p-3 text-white focus:border-orange-500 focus:outline-none"
-                placeholder="98765 43210"
-                maxLength="10"
-              />
-            </div>
-            <p className="text-xs text-gray-500 mt-1">10-digit mobile number</p>
-          </div>
-        );
-
-      case 4:
-        return (
-          <div>
-            <label className="text-gray-400 text-sm block mb-3">
-              Enter 6-digit OTP sent to {formData.phone}
-            </label>
-            <div className="flex gap-2 justify-center my-4">
-              {[...Array(6)].map((_, i) => (
-                <input
-                  key={i}
-                  type="text"
-                  maxLength="1"
-                  className="w-12 h-12 bg-gray-800 border border-gray-700 rounded-xl text-center text-xl text-white focus:border-orange-500 focus:outline-none"
-                  value={formData.phoneOtp[i] || ""}
-                  onChange={(e) => {
-                    const val = formData.phoneOtp.split("");
-                    val[i] = e.target.value.replace(/\D/g, "");
-                    setFormData((prev) => ({
-                      ...prev,
-                      phoneOtp: val.join("").slice(0, 6),
-                    }));
-                    if (e.target.value && i < 5) {
-                      document.getElementById(`p-otp-${i + 1}`)?.focus();
-                    }
-                  }}
-                  id={`p-otp-${i}`}
-                />
-              ))}
-            </div>
-            <p className="text-center text-sm text-gray-400">
-              Demo OTP: <span className="text-orange-400">123456</span>{" "}
-              <button
-                className="text-orange-500 ml-2 hover:underline"
-                onClick={sendPhoneOtp}
-              >
-                Resend
-              </button>
-            </p>
-          </div>
-        );
-
-      case 5:
-        return (
-          <div>
-            <label className="text-gray-400 text-sm block mb-1">
               Email Address
             </label>
             <input
@@ -613,47 +486,6 @@ const SecureRegistration = ({ selectedRole, onComplete, onBack }) => {
               className="w-full bg-gray-900/60 border border-white/10 rounded-xl p-3 text-white focus:border-orange-500 focus:outline-none transition-colors mt-1"
               placeholder="rahul@example.com"
             />
-          </div>
-        );
-
-      case 6:
-        return (
-          <div>
-            <label className="text-gray-400 text-sm block mb-3">
-              Enter 6-digit OTP sent to {formData.email}
-            </label>
-            <div className="flex gap-2 justify-center my-4">
-              {[...Array(6)].map((_, i) => (
-                <input
-                  key={i}
-                  type="text"
-                  maxLength="1"
-                  className="w-12 h-12 bg-gray-800 border border-gray-700 rounded-xl text-center text-xl text-white focus:border-orange-500 focus:outline-none"
-                  value={formData.emailOtp[i] || ""}
-                  onChange={(e) => {
-                    const val = formData.emailOtp.split("");
-                    val[i] = e.target.value.replace(/\D/g, "");
-                    setFormData((prev) => ({
-                      ...prev,
-                      emailOtp: val.join("").slice(0, 6),
-                    }));
-                    if (e.target.value && i < 5) {
-                      document.getElementById(`e-otp-${i + 1}`)?.focus();
-                    }
-                  }}
-                  id={`e-otp-${i}`}
-                />
-              ))}
-            </div>
-            <p className="text-center text-sm text-gray-400">
-              Demo OTP: <span className="text-orange-400">123456</span>{" "}
-              <button
-                className="text-orange-500 ml-2 hover:underline"
-                onClick={sendEmailOtp}
-              >
-                Resend
-              </button>
-            </p>
           </div>
         );
 
@@ -735,7 +567,7 @@ const SecureRegistration = ({ selectedRole, onComplete, onBack }) => {
               >
                 {loading ? (
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                ) : step === 6 ? (
+                ) : step === 3 ? (
                   "Complete Registration →"
                 ) : (
                   "Continue →"

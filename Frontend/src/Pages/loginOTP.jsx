@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 
-const OTPPage = ({ method, destination, userType, onBack }) => {
+const OTPPage = ({ destination, userType, onBack }) => {
   const navigate = useNavigate();
   const [otp, setOtp] = useState(Array(6).fill(""));
   const [loading, setLoading] = useState(false);
@@ -44,40 +44,26 @@ const OTPPage = ({ method, destination, userType, onBack }) => {
     setError("");
     
     const otpValue = otp.join("");
-    let verifyError = null;
-    let authData = null;
-
-    if (method === "email") {
-      const { data, error } = await supabase.auth.verifyOtp({
-        email: destination,
-        token: otpValue,
-        type: 'email'
-      });
-      if (error) verifyError = error.message;
-      else authData = data;
-    } else {
-      const { data, error } = await supabase.auth.verifyOtp({
-        phone: destination.replace(/\s/g, ""),
-        token: otpValue,
-        type: 'sms'
-      });
-      if (error) verifyError = error.message;
-      else authData = data;
-    }
+    
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: destination,
+      token: otpValue,
+      type: 'email'
+    });
 
     setLoading(false);
 
-    if (verifyError) {
-      setError(verifyError);
+    if (error) {
+      setError(error.message);
       setOtp(Array(6).fill(""));
       inputRefs.current[0]?.focus();
       return;
     }
     
-    if (authData?.session) {
+    if (data?.session) {
        localStorage.setItem("userRole", userType || "user");
-       localStorage.setItem("user", JSON.stringify(authData.user));
-       navigate("/dashboard");
+       localStorage.setItem("user", JSON.stringify(data.user));
+       navigate(userType === 'landowner' ? '/dashboard/landowner' : '/dashboard/user');
     }
   };
 
@@ -85,11 +71,7 @@ const OTPPage = ({ method, destination, userType, onBack }) => {
     setResendSeconds(30);
     setError("");
     
-    if (method === "email") {
-      await supabase.auth.signInWithOtp({ email: destination });
-    } else {
-      await supabase.auth.signInWithOtp({ phone: destination.replace(/\s/g, "") });
-    }
+    await supabase.auth.signInWithOtp({ email: destination });
   };
 
   const allFilled = otp.every(Boolean);

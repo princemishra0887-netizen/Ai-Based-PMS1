@@ -3,12 +3,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import OTPPage from "./loginOTP";
 import { supabase } from "../lib/supabaseClient";
+import { fetchProfileByUser, getDashboardRouteForRole } from "../lib/profileHelpers";
 
 const Login = () => {
   const [page, setPage] = useState("login");
-  const [method, setMethod] = useState("email");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -66,22 +65,12 @@ const Login = () => {
     };
   }, []);
 
-  const formatPhone = (value) => {
-    const digits = value.replace(/\D/g, "").slice(0, 10);
-    if (digits.length <= 5) return digits;
-    return `${digits.slice(0, 5)} ${digits.slice(5)}`;
-  };
-
-  const destination = method === "email" ? email : `+91 ${phone}`;
+  const destination = email;
 
   const handleNext = async () => {
     setError("");
-    if (method === "email" && !email) {
+    if (!email) {
       setError("Please enter your email address.");
-      return;
-    }
-    if (method === "phone" && phone.replace(/\D/g, "").length < 10) {
-      setError("Please enter a valid 10-digit phone number.");
       return;
     }
     if (!password) {
@@ -90,26 +79,37 @@ const Login = () => {
     }
 
     setLoading(true);
-    let errorMsg = null;
 
-    if (method === "email") {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) errorMsg = error.message;
-    } else {
-      const formattedPhone = "+91" + phone.replace(/\D/g, "");
-      const { error } = await supabase.auth.signInWithPassword({ phone: formattedPhone, password });
-      if (error) errorMsg = error.message;
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+
+      if (authError) {
+        setLoading(false);
+        setError(authError.message);
+        return;
+      }
+
+      const userId = authData.user?.id;
+      if (userId) {
+        const { profile } = await fetchProfileByUser(authData.user);
+        const role = profile?.role || 'user';
+        localStorage.setItem("userRole", role);
+        localStorage.setItem("user", JSON.stringify({
+          ...authData.user,
+          name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim(),
+          role
+        }));
+
+        setLoading(false);
+        window.location.href = getDashboardRouteForRole(role);
+      } else {
+        setLoading(false);
+        window.location.href = '/dashboard/user';
+      }
+    } catch (err) {
+      setLoading(false);
+      setError(err.message || "Login failed");
     }
-
-    setLoading(false);
-
-    if (errorMsg) {
-      setError(errorMsg);
-      return;
-    }
-
-    // Redirect to dashboard directly 
-    window.location.href = '/dashboard';
   };
 
   if (page === "otp") {
@@ -150,7 +150,6 @@ const Login = () => {
 
         <div className="relative z-10 flex min-h-screen items-center justify-center bg-black px-4">
           <OTPPage
-            method={method}
             destination={destination}
             userType={userType}
             onBack={() => setPage("login")}
@@ -259,85 +258,26 @@ const Login = () => {
                 </div>
               </div>
 
-              {/* Segmented Control - Made bigger */}
-              <div className="relative mb-8 flex rounded-xl bg-gray-800/50 p-1.5">
-                <motion.div
-                  className="absolute inset-y-1 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600"
-                  style={{
-                    width: "calc(50% - 6px)",
-                  }}
-                  animate={{ left: method === "email" ? 6 : "calc(50% + 2px)" }}
-                  transition={{ type: "spring", stiffness: 500, damping: 35 }}
-                />
-                {["email", "phone"].map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => {
-                      setMethod(m);
-                      setError("");
-                    }}
-                    className={`relative z-10 w-1/2 py-2.5 text-base font-semibold uppercase tracking-wider transition-colors duration-200 ${
-                      method === m ? "text-white" : "text-gray-400"
-                    }`}
-                  >
-                    {m === "email" ? "Email" : "Phone"}
-                  </button>
-                ))}
-              </div>
+              {/* Segmented Control removed - Email only login */}
 
               {/* Input Fields - Made bigger */}
               <div className="space-y-5">
-                <AnimatePresence mode="wait">
-                  {method === "email" ? (
-                    <motion.div
-                      key="email"
-                      initial={{ opacity: 0, x: -12 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -12 }}
-                      transition={{ duration: 0.15 }}
-                    >
-                      <label className="mb-2 block text-sm font-medium uppercase tracking-wider text-gray-400">
-                        Email Address
-                      </label>
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder={
-                          userType === "landowner"
-                            ? "owner@parkease.com"
-                            : "user@example.com"
-                        }
-                        className="h-12 w-full rounded-xl border border-white/10 bg-gray-800/50 px-4 text-base text-white placeholder:text-gray-500 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
-                      />
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="phone"
-                      initial={{ opacity: 0, x: 12 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 12 }}
-                      transition={{ duration: 0.15 }}
-                    >
-                      <label className="mb-2 block text-sm font-medium uppercase tracking-wider text-gray-400">
-                        Phone Number
-                      </label>
-                      <div className="flex gap-2">
-                        <div className="flex h-12 items-center rounded-xl bg-gray-800/50 border border-white/10 px-4 text-base text-gray-300">
-                          +91
-                        </div>
-                        <input
-                          type="tel"
-                          value={phone}
-                          onChange={(e) => setPhone(formatPhone(e.target.value))}
-                          placeholder="98765 43210"
-                          className="h-12 flex-1 rounded-xl border border-white/10 bg-gray-800/50 px-4 text-base text-white placeholder:text-gray-500 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
-                        />
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                <div>
+                  <label className="mb-2 block text-sm font-medium uppercase tracking-wider text-gray-400">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder={
+                      userType === "landowner"
+                        ? "owner@parkease.com"
+                        : "user@example.com"
+                    }
+                    className="h-12 w-full rounded-xl border border-white/10 bg-gray-800/50 px-4 text-base text-white placeholder:text-gray-500 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
+                  />
+                </div>
 
                 {/* Password Field - Made bigger */}
                 <div>

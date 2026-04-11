@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "../lib/supabaseClient";
+import { fetchProfileByUser, getDashboardRouteForRole } from "../lib/profileHelpers";
 
 /* ── Fonts ── */
 const fl = document.createElement("link");
@@ -29,8 +32,7 @@ css.textContent = `
 `;
 document.head.appendChild(css);
 
-/* ── Data ── */
-const OWNER = { name:"Rajesh Kumar", area:"Ghaziabad, UP", phone:"9876543210", email:"rajesh.kumar@mail.com", joined:"Nov 2024", verified:true, avatar:"RK" };
+/* ── Data (demo spots/bookings – owner comes from Supabase) ──  */
 
 const INIT_SPOTS = [
   { id:1, name:"Front Yard – Spot A", type:"Open Air", address:"12, MG Road, Ghaziabad", priceHour:30, priceDay:200, status:"active", bookings:38, revenue:9200, rating:4.7, reviews:38, photo:"https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=500&q=80", availability:{mon:true,tue:true,wed:true,thu:true,fri:true,sat:false,sun:false}, timeFrom:"08:00", timeTo:"20:00", amenities:["CCTV","Lighting","Wide Gate"], slots:2 },
@@ -86,6 +88,7 @@ const AMENITY_OPTS=["CCTV","Lighting","Covered Roof","Security Guard","EV Chargi
    MAIN
 ══════════════════════════════════════════════ */
 export default function LandOwnerDashBoard(){
+  const navigate = useNavigate();
   const [page,setPage]=useState("overview");
   const [spots,setSpots]=useState(INIT_SPOTS);
   const [bookings]=useState(BOOKINGS);
@@ -97,23 +100,147 @@ export default function LandOwnerDashBoard(){
   const [detailSpot,setDetailSpot]=useState(null);
   const [time,setTime]=useState(new Date());
   const [notifOpen,setNotifOpen]=useState(false);
+  const [ownerProfile, setOwnerProfile] = useState(null);
+  const [dashLoading, setDashLoading] = useState(true);
 
   useEffect(()=>{const t=setInterval(()=>setTime(new Date()),1000);return()=>clearInterval(t);},[]);
 
-  const totalRev=spots.reduce((a,s)=>a+s.revenue,0);
-  const totalBookings=spots.reduce((a,s)=>a+s.bookings,0);
-  const activeBookings=bookings.filter(b=>b.status==="active").length;
+  // Fetch profile, spots, and bookings from Supabase
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const { data: { user }, error: authErr } = await supabase.auth.getUser();
+        if (authErr || !user) { navigate("/auth/login"); return; }
+        
+        const { profile: prof } = await fetchProfileByUser(user);
+        if (prof) {
+          if (prof.role === 'user') { navigate(getDashboardRouteForRole(prof.role)); return; }
+          setOwnerProfile(prof);
+        }
 
-  function openAdd(){setForm(BLANK_SPOT);setEditSpot(null);setShowAddSpot(true);}
-  function openEdit(spot){setForm({...spot});setEditSpot(spot.id);setShowAddSpot(true);}
-  function saveSpot(){
+        // 2. Fetch Owner's Spots
+        const { data: sp } = await supabase
+          .from('spots')
+          .select('*')
+          .eq('owner_id', user.id)
+          .order('created_at', { ascending: false });
+        setSpots(sp || []);
+
+        // 3. Fetch Bookings for Owner's Spots
+        const { data: bk } = await supabase
+          .from('bookings')
+          .select('*, spots!inner(*)')
+          .eq('spots.owner_id', user.id)
+          .order('created_at', { ascending: false });
+        setBookings(bk || []);
+
+      } catch (err) { console.warn("Owner data fetch error:", err.message); }
+      finally { setDashLoading(false); }
+    }
+    fetchData();
+  }, [navigate]);
+
+  // Build OWNER from Supabase profile
+  const OWNER = ownerProfile ? {
+    name: `${ownerProfile.first_name || ''} ${ownerProfile.last_name || ''}`.trim() || 'Owner',
+    area: ownerProfile.city && ownerProfile.state ? `${ownerProfile.city}, ${ownerProfile.state}` : '',
+    phone: ownerProfile.phone || '', email: ownerProfile.email || '',
+    joined: ownerProfile.created_at ? new Date(ownerProfile.created_at).toLocaleDateString('en-IN',{month:'short',year:'numeric'}) : '',
+    verified: true,
+    avatar: `${(ownerProfile.first_name?.[0]||'O')}${(ownerProfile.last_name?.[0]||'')}`,
+  } : { name:"Owner", area:"", phone:"", email:"", joined:"", verified:false, avatar:"O" };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem("user"); localStorage.removeItem("userRole");
+    navigate("/auth/login");
+  };
+
+  if (dashLoading) return (
+    <div style={{display:"flex",minHeight:"100vh",background:"#f7f5f0",alignItems:"center",justifyContent:"center",fontFamily:"'Plus Jakarta Sans',sans-serif"}}>
+      <div style={{textAlign:"center"}}>
+        <div style={{width:48,height:48,borderRadius:"50%",border:"3px solid #e0d8cc",borderTopColor:"#a07840",animation:"slideUp 0.8s linear infinite",margin:"0 auto 16px"}}/>
+        <div style={{color:"#b0a090",fontSize:14}}>Loading dashboard...</div>
+      </div>
+    </div>
+  );
+
+  async function saveSpot(){
     if(!form.name||!form.priceHour) return;
-    const s={...form,id:editSpot||Date.now(),priceHour:Number(form.priceHour),priceDay:Number(form.priceDay),bookings:editSpot?spots.find(x=>x.id===editSpot).bookings:0,revenue:editSpot?spots.find(x=>x.id===editSpot).revenue:0,rating:editSpot?spots.find(x=>x.id===editSpot).rating:5.0,reviews:editSpot?spots.find(x=>x.id===editSpot).reviews:0};
-    setSpots(editSpot?spots.map(x=>x.id===editSpot?s:x):[...spots,s]);
-    setSaved(true); setTimeout(()=>{setSaved(false);setShowAddSpot(false);},1400);
+    const { data: { user } } = await supabase.auth.getUser();
+    if(!user) return;
+
+    const spotData = {
+      owner_id: user.id,
+      name: form.name,
+      type: form.type,
+      address: form.address,
+      price_hour: Number(form.priceHour),
+      price_day: Number(form.priceDay),
+      status: form.status,
+      availability: form.availability,
+      time_from: form.timeFrom,
+      time_to: form.timeTo,
+      amenities: form.amenities,
+      photo: form.photo,
+      slots: Number(form.slots)
+    };
+
+    let error;
+    if(editSpot) {
+      const { error: err } = await supabase.from('spots').update(spotData).eq('id', editSpot);
+      error = err;
+    } else {
+      const { error: err } = await supabase.from('spots').insert([spotData]);
+      error = err;
+    }
+
+    if(!error) {
+      setSaved(true); 
+      setTimeout(()=>{
+        setSaved(false);
+        setShowAddSpot(false);
+        setEditSpot(null);
+        window.location.reload(); 
+      },1400);
+    } else {
+      alert("Error saving spot: " + error.message);
+    }
   }
-  function toggleSpotStatus(id){setSpots(spots.map(s=>s.id===id?{...s,status:s.status==="active"?"inactive":"active"}:s));}
-  function removeSpot(id){setSpots(spots.filter(s=>s.id!==id));setDetailSpot(null);}
+
+  const totalRev = spots.reduce((a, s) => a + (s.revenue || 0), 0);
+  const totalBookings = spots.reduce((a, s) => a + (s.bookings || 0), 0);
+  const activeBookings = bookings.filter(b => b.status === "active").length;
+
+  function openAdd(){ setForm(BLANK_SPOT); setEditSpot(null); setShowAddSpot(true); }
+  function openEdit(spot){ 
+    setForm({
+      ...spot,
+      priceHour: spot.price_hour,
+      priceDay: spot.price_day,
+      timeFrom: spot.time_from,
+      timeTo: spot.time_to
+    }); 
+    setEditSpot(spot.id); 
+    setShowAddSpot(true); 
+  }
+
+  async function toggleSpotStatus(id, currentStatus){
+    const newStatus = currentStatus === "active" ? "inactive" : "active";
+    const { error } = await supabase.from('spots').update({ status: newStatus }).eq('id', id);
+    if(!error) {
+      setSpots(spots.map(s => s.id === id ? { ...s, status: newStatus } : s));
+    }
+  }
+
+  async function removeSpot(id){
+    if(!window.confirm("Delete this spot permanently?")) return;
+    const { error } = await supabase.from('spots').delete().eq('id', id);
+    if(!error) {
+      setSpots(spots.filter(s => s.id !== id));
+      setDetailSpot(null);
+    }
+  }
   function toggleAmenity(a){setForm(f=>({...f,amenities:f.amenities.includes(a)?f.amenities.filter(x=>x!==a):[...f.amenities,a]}));}
 
   const NAV=[
@@ -159,8 +286,9 @@ export default function LandOwnerDashBoard(){
           ))}
         </nav>
 
-        {/* Bottom help */}
-        {sideOpen&&<div style={{padding:"14px 16px",borderTop:"1px solid #2e2010"}}>
+        {/* Bottom */}
+        {sideOpen&&<div style={{padding:"14px 16px",borderTop:"1px solid #2e2010",display:"flex",flexDirection:"column",gap:10}}>
+          <button onClick={handleLogout} style={{width:"100%",padding:"10px",borderRadius:11,border:"1px solid #3a2810",background:"transparent",color:"#f87171",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"'Plus Jakarta Sans',sans-serif"}}>🚪 Logout</button>
           <div style={{background:"#261a0e",borderRadius:12,padding:"12px 14px",border:"1px solid #3a2810"}}>
             <div style={{fontSize:11,color:"#e8a84a",fontWeight:700,marginBottom:4}}>Need Help?</div>
             <div style={{fontSize:11,color:"#6a5030",lineHeight:1.6}}>Contact support at help@parkease.in</div>
