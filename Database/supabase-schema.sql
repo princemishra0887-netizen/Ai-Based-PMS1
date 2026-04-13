@@ -120,11 +120,13 @@ create table if not exists public.vehicles (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
   number text not null,
-  model text,
   type text default 'Car',
+  model text,
   color text,
   is_primary boolean default false,
-  created_at timestamptz not null default now()
+  status text default 'active',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create or replace function public.set_updated_at()
