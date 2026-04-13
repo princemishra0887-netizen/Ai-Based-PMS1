@@ -74,20 +74,6 @@ const ParkEaseAuthChoice = ({ onChoice }) => {
     setTimeout(() => setToast({ show: false, message: "" }), 3000);
   };
 
-  // const handleChoice = (choice) => {
-  //   if (choice === "signup") {
-  //     showToast("🎉 Let's create your account!");
-  //     setTimeout(() => {
-  //       if (onChoice) onChoice("signup");
-  //     }, 500);
-  //   } else {
-  //     showToast("👋 Welcome back!");
-  //     setTimeout(() => {
-  //       if (onChoice) onChoice("login");
-  //     }, 500);
-  //   }
-  // };
-
   return (
     <>
       {/* Custom Cursor Elements */}

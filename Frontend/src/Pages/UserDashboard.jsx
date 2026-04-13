@@ -5,11 +5,52 @@ import { fetchProfileByUser, getDashboardRouteForRole } from "../lib/profileHelp
 
 const DAYS = ["mon","tue","wed","thu","fri","sat","sun"];
 const DAY_L = ["Mo","Tu","We","Th","Fr","Sa","Su"];
+const INITIAL_VEHICLE_FORM = { number: "", type: "Car", model: "", color: "" };
+
+function sortVehicles(list = []) {
+  return [...list].sort((a, b) => {
+    if (Boolean(a.is_primary) !== Boolean(b.is_primary)) {
+      return Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary));
+    }
+    return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+  });
+}
+
+function getVehicleVisual(type) {
+  const normalized = (type || "").toLowerCase();
+
+  if (normalized === "bike" || normalized === "scooter") {
+    return {
+      icon: normalized === "bike" ? "🏍️" : "🛵",
+      iconBg: "linear-gradient(135deg,#e8fff0,#c7f7d6)",
+      iconColor: "#16803c",
+    };
+  }
+
+  if (normalized === "truck") {
+    return {
+      icon: "🚚",
+      iconBg: "linear-gradient(135deg,#eef5ff,#d9e9ff)",
+      iconColor: "#2563eb",
+    };
+  }
+
+  return {
+    icon: "🚗",
+    iconBg: "linear-gradient(135deg,#fff1e3,#ffd9b8)",
+    iconColor: "#ff6b00",
+  };
+}
+
+function getVehicleSubtitle(vehicle) {
+  return [vehicle.model, vehicle.color, vehicle.type].filter(Boolean).join(" · ") || "Vehicle details not added yet";
+}
 
 export default function UserDashboard() {
   const navigate = useNavigate();
   const [page, setPage] = useState("overview");
   const [sideOpen, setSideOpen] = useState(true);
+  const [userId, setUserId] = useState("");
   const [profile, setProfile] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [vehicles, setVehicles] = useState([]);
@@ -17,12 +58,37 @@ export default function UserDashboard() {
   const [bookingFilter, setBookingFilter] = useState("all");
   const [time, setTime] = useState(new Date());
   const [chosenSpot, setChosenSpot] = useState(null);
+  const [vehicleForm, setVehicleForm] = useState(INITIAL_VEHICLE_FORM);
+  const [vehicleSaving, setVehicleSaving] = useState(false);
+  const [vehicleBusyId, setVehicleBusyId] = useState("");
+  const [vehicleNotice, setVehicleNotice] = useState(null);
+  const [primaryConfirmVehicle, setPrimaryConfirmVehicle] = useState(null);
+  const [showVehicleForm, setShowVehicleForm] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [spotSearch, setSpotSearch] = useState("");
+  const [spotLocation, setSpotLocation] = useState("");
+  const [spotDate, setSpotDate] = useState("");
 
   useEffect(() => {
     const t = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  const refreshVehicles = async (ownerId = userId) => {
+    if (!ownerId) return [];
+
+    const { data, error } = await supabase
+      .from("vehicles")
+      .select("*")
+      .eq("user_id", ownerId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    const nextVehicles = sortVehicles(data || []);
+    setVehicles(nextVehicles);
+    return nextVehicles;
+  };
 
   // Fetch all data from Supabase on mount
   useEffect(() => {
@@ -34,13 +100,11 @@ export default function UserDashboard() {
           return;
         }
 
+        setUserId(user.id);
+
         const { profile: prof } = await fetchProfileByUser(user);
 
         if (prof) {
-          if (prof.role === 'landOwner') {
-            navigate(getDashboardRouteForRole(prof.role));
-            return;
-          }
           setProfile(prof);
         }
 
@@ -53,12 +117,7 @@ export default function UserDashboard() {
         setBookings(bk || []);
 
         // Fetch user's vehicles
-        const { data: vh } = await supabase
-          .from('vehicles')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
-        setVehicles(vh || []);
+        await refreshVehicles(user.id);
 
         // Fetch all available spots for browsing
         const { data: sp } = await supabase
@@ -83,6 +142,26 @@ export default function UserDashboard() {
   const totalSpent = bookings.filter(b => b.status !== "cancelled").reduce((a, b) => a + (b.amount || 0), 0);
 
   const filteredBookings = bookingFilter === "all" ? bookings : bookings.filter(b => b.status === bookingFilter);
+
+  // Filter spots for browse page
+  const filteredSpots = spots.filter(s => {
+    const q = spotSearch.toLowerCase();
+    const matchesSearch = !q || s.name?.toLowerCase().includes(q) || s.address?.toLowerCase().includes(q);
+    const matchesLocation = !spotLocation || s.city?.toLowerCase() === spotLocation.toLowerCase();
+    
+    // Check date availability
+    let matchesDate = true;
+    if (spotDate) {
+      const selectedDate = new Date(spotDate);
+      const dayIndex = selectedDate.getDay();
+      const days = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+      const dayKey = days[dayIndex];
+      const availability = s.availability || {};
+      matchesDate = availability[dayKey] !== false;
+    }
+    
+    return matchesSearch && matchesLocation && matchesDate;
+  });
 
   const NAV = [
     { key: "overview", icon: "⊞", label: "Overview" },
@@ -121,13 +200,21 @@ export default function UserDashboard() {
     const newBooking = {
       user_id: user.id,
       spot_id: spot.id,
-      spot_name: spot.name,
-      spot_address: spot.address,
-      amount: spot.price_hour * 2, // Demo: 2 hours
+      owner_id: spot.owner_id,
+      vehicle_number: "UP 14 AB 1234",
+      vehicle_type: "Car",
+      vehicle_brand: "Maruti",
+      vehicle_color: "Silver",
+      user_name: user.email || "User",
+      user_phone: "9876543210",
+      booking_date: new Date().toISOString().split('T')[0],
+      start_time: "10:00:00",
+      end_time: "12:00:00",
+      duration_hours: 2,
+      amount: spot.price_hour * 2,
       booking_type: "hourly",
-      status: "active",
-      time: "2 Hours",
-      date: new Date().toISOString().split('T')[0]
+      status: "pending",
+      payment_status: "pending"
     };
 
     const { error } = await supabase.from('bookings').insert([newBooking]);
@@ -139,28 +226,162 @@ export default function UserDashboard() {
     }
   };
 
-  const handleAddVehicle = async () => {
-    const number = window.prompt("Enter Vehicle Number (e.g. UP 14 AB 1234):");
-    if (!number) return;
-    const model = window.prompt("Enter Vehicle Model (e.g. Maruti Swift):");
-    const type = window.prompt("Enter Vehicle Type (Car/Bike):") || "Car";
+  const handleVehicleInput = (field, value) => {
+    setVehicleForm(prev => ({
+      ...prev,
+      [field]: field === "number" ? value.toUpperCase() : value
+    }));
+  };
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+  const handleVehicleCancel = () => {
+    setVehicleForm(INITIAL_VEHICLE_FORM);
+    setVehicleNotice(null);
+  };
 
-    const { error } = await supabase.from('vehicles').insert([{
-      user_id: user.id,
-      number,
-      model,
-      type,
-      is_primary: vehicles.length === 0
-    }]);
+  const handleAddVehicle = async (event) => {
+    event.preventDefault();
 
-    if (!error) {
-      alert("Vehicle added!");
-      window.location.reload();
-    } else {
-      alert("Failed to add vehicle: " + error.message);
+    if (!userId) return;
+
+    const payload = {
+      number: vehicleForm.number.replace(/\s+/g, " ").trim().toUpperCase(),
+      type: vehicleForm.type.trim() || "Car",
+      model: vehicleForm.model.trim(),
+      color: vehicleForm.color.trim(),
+    };
+
+    if (!payload.number || !payload.model || !payload.color) {
+      setVehicleNotice({ type: "error", message: "Please fill vehicle number, brand & model, and color." });
+      return;
+    }
+
+    setVehicleSaving(true);
+    setVehicleNotice(null);
+
+    try {
+      const { data, error } = await supabase
+        .from("vehicles")
+        .insert([{
+          user_id: userId,
+          ...payload,
+          is_primary: vehicles.length === 0
+        }])
+        .select("*")
+        .single();
+
+      if (error) throw error;
+
+      setVehicles(prev => sortVehicles([data, ...prev]));
+      setVehicleForm(INITIAL_VEHICLE_FORM);
+      setVehicleNotice({ type: "success", message: `${payload.number} added to your vehicles.` });
+    } catch (error) {
+      setVehicleNotice({ type: "error", message: error.message || "Failed to add vehicle." });
+    } finally {
+      setVehicleSaving(false);
+    }
+  };
+
+  const handleAskPrimaryChange = (vehicle) => {
+    if (!vehicle || vehicle.is_primary || vehicleBusyId) return;
+    setPrimaryConfirmVehicle(vehicle);
+  };
+
+  const handleConfirmPrimaryChange = async () => {
+    if (!primaryConfirmVehicle || !userId) return;
+
+    const targetVehicle = primaryConfirmVehicle;
+    const currentPrimary = vehicles.find(vehicle => vehicle.is_primary);
+
+    setVehicleBusyId(targetVehicle.id);
+    setPrimaryConfirmVehicle(null);
+    setVehicleNotice(null);
+
+    try {
+      if (currentPrimary && currentPrimary.id !== targetVehicle.id) {
+        const { error: unsetError } = await supabase
+          .from("vehicles")
+          .update({ is_primary: false })
+          .eq("id", currentPrimary.id)
+          .eq("user_id", userId);
+
+        if (unsetError) throw unsetError;
+      }
+
+      const { error: setError } = await supabase
+        .from("vehicles")
+        .update({ is_primary: true })
+        .eq("id", targetVehicle.id)
+        .eq("user_id", userId);
+
+      if (setError) {
+        if (currentPrimary && currentPrimary.id !== targetVehicle.id) {
+          await supabase
+            .from("vehicles")
+            .update({ is_primary: true })
+            .eq("id", currentPrimary.id)
+            .eq("user_id", userId);
+        }
+        throw setError;
+      }
+
+      await refreshVehicles(userId);
+      setVehicleNotice({ type: "success", message: `${targetVehicle.number} is now your primary vehicle.` });
+    } catch (error) {
+      try {
+        await refreshVehicles(userId);
+      } catch {
+        // Keep the current UI state if a refresh also fails.
+      }
+      setVehicleNotice({ type: "error", message: error.message || "Failed to change the primary vehicle." });
+    } finally {
+      setVehicleBusyId("");
+    }
+  };
+
+  const handleRemoveVehicle = async (vehicle) => {
+    if (!vehicle || !userId) return;
+    if (!window.confirm(`Remove ${vehicle.number}?`)) return;
+
+    const remainingVehicles = vehicles.filter(item => item.id !== vehicle.id);
+    const replacementVehicle = vehicle.is_primary ? remainingVehicles[0] : null;
+
+    setVehicleBusyId(vehicle.id);
+    setVehicleNotice(null);
+
+    try {
+      const { error: deleteError } = await supabase
+        .from("vehicles")
+        .delete()
+        .eq("id", vehicle.id)
+        .eq("user_id", userId);
+
+      if (deleteError) throw deleteError;
+
+      if (replacementVehicle) {
+        const { error: replacementError } = await supabase
+          .from("vehicles")
+          .update({ is_primary: true })
+          .eq("id", replacementVehicle.id)
+          .eq("user_id", userId);
+
+        if (replacementError) throw replacementError;
+      }
+
+      const nextVehicles = replacementVehicle
+        ? remainingVehicles.map(item => item.id === replacementVehicle.id ? { ...item, is_primary: true } : item)
+        : remainingVehicles;
+
+      setVehicles(sortVehicles(nextVehicles));
+      setVehicleNotice({ type: "success", message: `${vehicle.number} removed from your vehicles.` });
+    } catch (error) {
+      try {
+        await refreshVehicles(userId);
+      } catch {
+        // Keep the current UI state if a refresh also fails.
+      }
+      setVehicleNotice({ type: "error", message: error.message || "Failed to remove vehicle." });
+    } finally {
+      setVehicleBusyId("");
     }
   };
 
@@ -375,7 +596,7 @@ export default function UserDashboard() {
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, fontSize: 14, color: "#e0e0e0", marginBottom: 3 }}>{b.spot_name || "Parking Spot"}</div>
-                      <div style={{ fontSize: 12, color: "#4a5070" }}>📍 {b.spot_address || ""}</div>
+                      <div style={{ fontSize: 12, color: "#4a5070" }}>📍 Spot ID: {b.spot_id?.slice(0, 8)}</div>
                       <div style={{ fontSize: 11, color: "#3a4060", marginTop: 4 }}>🚗 {b.vehicle_number || ""} · {b.booking_type || ""}</div>
                     </div>
                     <div style={{ textAlign: "center", flexShrink: 0 }}>
@@ -407,17 +628,79 @@ export default function UserDashboard() {
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               <div style={{ textAlign: "center", marginBottom: 8 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "2px", color: "#63d2ff", textTransform: "uppercase", marginBottom: 8 }}>Find Parking</div>
-                <h2 style={{ fontSize: 28, fontWeight: 900, margin: 0, color: "#f0f0f0" }}>Available Spots</h2>
+                <h2 style={{ fontSize: 28, fontWeight: 900, margin: 0, color: "#f0f0f0" }}>Search Available Spots</h2>
               </div>
-              {spots.length === 0 ? (
+
+              {/* Search & Filter Bar */}
+              <div style={{ background: "#0d0f14", border: "1px solid #1a1d28", borderRadius: 16, padding: "16px 20px", display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <input value={spotSearch} onChange={e => setSpotSearch(e.target.value)}
+                    placeholder="🔍 Search spot name or address..."
+                    style={{ width: "100%", background: "#111318", border: "1px solid #1e2230", borderRadius: 10, padding: "12px 14px", color: "#e0e0e0", fontSize: 13, fontWeight: 500, fontFamily: "'Outfit',sans-serif", outline: "none", transition: "all 0.2s" }}
+                    onFocus={e => { e.target.style.borderColor = "#63d2ff"; e.target.style.boxShadow = "0 0 0 3px rgba(99,210,255,0.1)"; }}
+                    onBlur={e => { e.target.style.borderColor = "#1e2230"; e.target.style.boxShadow = ""; }} />
+                </div>
+                
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  {/* Location Filter */}
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {["Ghaziabad", "Mathura"].map(city => (
+                      <button key={city} onClick={() => setSpotLocation(spotLocation === city ? "" : city)}
+                        style={{ padding: "10px 16px", borderRadius: 10, border: spotLocation === city ? "none" : "1px solid #1e2230", background: spotLocation === city ? "linear-gradient(135deg,#63d2ff,#3a8fff)" : "transparent", color: spotLocation === city ? "#080a0f" : "#5a6080", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "'Outfit',sans-serif", transition: "all 0.2s", whiteSpace: "nowrap" }}>
+                        📍 {city}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Date Filter - Improved */}
+                  <div style={{ position: "relative" }}>
+                    <input value={spotDate} onChange={e => setSpotDate(e.target.value)} type="date"
+                      style={{ background: spotDate ? "rgba(99,210,255,0.1)" : "#111318", border: spotDate ? "1px solid #63d2ff" : "1px solid #1e2230", borderRadius: 10, padding: "10px 12px", color: "#e0e0e0", fontSize: 12, fontFamily: "'Outfit',sans-serif", cursor: "pointer", outline: "none", transition: "all 0.2s", minWidth: 140 }} />
+                    {spotDate && <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#63d2ff", pointerEvents: "none" }}>✓</span>}
+                  </div>
+                </div>
+
+                {/* Clear Filters */}
+                {(spotSearch || spotLocation || spotDate) && (
+                  <button onClick={() => { setSpotSearch(""); setSpotLocation(""); setSpotDate(""); }}
+                    style={{ padding: "10px 16px", borderRadius: 10, border: "1px solid #f87171", background: "rgba(248,113,113,0.08)", color: "#f87171", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif", transition: "all 0.2s" }}>
+                    ✕ Clear
+                  </button>
+                )}
+              </div>
+
+              {/* Active Filters Status */}
+              {(spotSearch || spotLocation || spotDate) && (
+                <div style={{ background: "rgba(99,210,255,0.05)", border: "1px solid rgba(99,210,255,0.15)", borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#7a8a9a", flexWrap: "wrap" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+                    🔍 Searching: {" "}
+                    {spotSearch && <span style={{ background: "rgba(99,210,255,0.2)", padding: "2px 8px", borderRadius: 4, color: "#63d2ff", whiteSpace: "nowrap" }}>"{spotSearch}"</span>}
+                    {spotLocation && <span style={{ background: "rgba(99,210,255,0.2)", padding: "2px 8px", borderRadius: 4, color: "#63d2ff", whiteSpace: "nowrap" }}>{spotLocation}</span>}
+                    {spotDate && <span style={{ background: "rgba(99,210,255,0.2)", padding: "2px 8px", borderRadius: 4, color: "#63d2ff", whiteSpace: "nowrap" }}>📅 {new Date(spotDate).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}</span>}
+                  </span>
+                  <span style={{ marginLeft: "auto", color: "#5a6080", whiteSpace: "nowrap" }}>Found {filteredSpots.length} spot{filteredSpots.length !== 1 ? "s" : ""}</span>
+                </div>
+              )}
+
+              {filteredSpots.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "80px 0", color: "#3a4060" }}>
                   <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
-                  <div style={{ fontWeight: 700, fontSize: 18, color: "#5a6080" }}>No spots available yet</div>
-                  <div style={{ fontSize: 13, color: "#3a4060", marginTop: 8 }}>Check back soon — land owners are adding spots!</div>
+                  <div style={{ fontWeight: 700, fontSize: 18, color: "#5a6080" }}>
+                    {spots.length === 0 ? "No spots available yet" : "No spots match your search"}
+                  </div>
+                  <div style={{ fontSize: 13, color: "#3a4060", marginTop: 8 }}>
+                    {spots.length === 0 ? "Check back soon — land owners are adding spots!" : "Try changing your search or filters"}
+                  </div>
+                  {spotSearch || spotLocation || spotDate ? (
+                    <button onClick={() => { setSpotSearch(""); setSpotLocation(""); setSpotDate(""); }}
+                      style={{ marginTop: 16, padding: "10px 24px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#63d2ff,#3a8fff)", color: "#080a0f", fontWeight: 800, fontSize: 13, cursor: "pointer" }}>
+                      Clear Filters →
+                    </button>
+                  ) : null}
                 </div>
               ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 20 }}>
-                  {spots.map(spot => (
+                  {filteredSpots.map(spot => (
                     <div key={spot.id} style={{ background: "#0d0f14", border: "1px solid #1a1d28", borderRadius: 18, overflow: "hidden", transition: "transform 0.2s, box-shadow 0.2s", cursor: "pointer" }}
                       onClick={() => setChosenSpot(spot)}
                       onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 20px 50px rgba(0,0,0,0.5)"; }}
@@ -494,29 +777,194 @@ export default function UserDashboard() {
 
           {/* ══ VEHICLES ══ */}
           {page === "vehicles" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 640 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <h2 style={{ margin: 0, fontWeight: 800, fontSize: 20, color: "#f0f0f0" }}>My Vehicles</h2>
-                <button onClick={handleAddVehicle} style={{ padding: "10px 20px", borderRadius: 11, border: "none", background: "linear-gradient(135deg,#63d2ff,#3a8fff)", color: "#080a0f", fontWeight: 800, fontSize: 13, cursor: "pointer" }}>+ Add Vehicle</button>
+            <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: "100%" }}>
+              {/* Header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: 12 }}>
+                <div>
+                  <h2 style={{ margin: 0, fontWeight: 800, fontSize: 24, color: "#f0f0f0" }}>My Vehicles</h2>
+                  <div style={{ fontSize: 13, color: "#4a5070", marginTop: 6 }}>{vehicles.length} vehicles registered</div>
+                </div>
+                <button onClick={() => setShowVehicleForm(!showVehicleForm)} style={{ padding: "12px 24px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#63d2ff,#3a8fff)", color: "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer", boxShadow: "0 4px 16px rgba(99,210,255,0.3)" }}>+ Add Vehicle</button>
               </div>
-              {vehicles.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "60px 0", color: "#3a4060", background: "#0d0f14", border: "1px solid #1a1d28", borderRadius: 18 }}>
-                  <div style={{ fontSize: 40, marginBottom: 10 }}>🚗</div>
-                  <div style={{ fontWeight: 700, fontSize: 16, color: "#5a6080" }}>No vehicles registered</div>
-                  <div style={{ fontSize: 13, color: "#3a4060", marginTop: 6 }}>Add your vehicle to start booking</div>
+
+              {/* Add Vehicle Form */}
+              {showVehicleForm && (
+                <div style={{ background: "#0d0f14", border: "1px solid #1a1d28", borderRadius: 18, padding: 24, marginBottom: 12 }}>
+                  <h3 style={{ margin: "0 0 18px", fontWeight: 800, fontSize: 16, color: "#f0f0f0" }}>Add New Vehicle</h3>
+                  <form onSubmit={handleAddVehicle} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                      <div>
+                        <label style={{ fontSize: 11, fontWeight: 700, color: "#4a5070", letterSpacing: "0.8px", textTransform: "uppercase", display: "block", marginBottom: 8 }}>Vehicle Number</label>
+                        <input type="text" value={vehicleForm.number} onChange={e => handleVehicleInput("number", e.target.value)} placeholder="UP 14 AB 1234" style={{ width: "100%", background: "#111318", border: "1px solid #1e2230", borderRadius: 10, padding: "11px 14px", color: "#e0e0e0", fontSize: 14, fontFamily: "'Outfit',sans-serif" }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, fontWeight: 700, color: "#4a5070", letterSpacing: "0.8px", textTransform: "uppercase", display: "block", marginBottom: 8 }}>Vehicle Type</label>
+                        <select value={vehicleForm.type} onChange={e => handleVehicleInput("type", e.target.value)} style={{ width: "100%", background: "#111318", border: "1px solid #1e2230", borderRadius: 10, padding: "11px 14px", color: "#e0e0e0", fontSize: 14, fontFamily: "'Outfit',sans-serif", cursor: "pointer" }}>
+                          <option value="Car">Car</option>
+                          <option value="Bike">Bike</option>
+                          <option value="Scooter">Scooter</option>
+                          <option value="Truck">Truck</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                      <div>
+                        <label style={{ fontSize: 11, fontWeight: 700, color: "#4a5070", letterSpacing: "0.8px", textTransform: "uppercase", display: "block", marginBottom: 8 }}>Brand & Model</label>
+                        <input type="text" value={vehicleForm.model} onChange={e => handleVehicleInput("model", e.target.value)} placeholder="Maruti Swift" style={{ width: "100%", background: "#111318", border: "1px solid #1e2230", borderRadius: 10, padding: "11px 14px", color: "#e0e0e0", fontSize: 14, fontFamily: "'Outfit',sans-serif" }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, fontWeight: 700, color: "#4a5070", letterSpacing: "0.8px", textTransform: "uppercase", display: "block", marginBottom: 8 }}>Color</label>
+                        <input type="text" value={vehicleForm.color} onChange={e => handleVehicleInput("color", e.target.value)} placeholder="White" style={{ width: "100%", background: "#111318", border: "1px solid #1e2230", borderRadius: 10, padding: "11px 14px", color: "#e0e0e0", fontSize: 14, fontFamily: "'Outfit',sans-serif" }} />
+                      </div>
+                    </div>
+                    {vehicleNotice && (
+                      <div style={{ padding: "12px 14px", borderRadius: 10, background: vehicleNotice.type === "error" ? "rgba(248,113,113,0.1)" : "rgba(74,222,128,0.1)", border: `1px solid ${vehicleNotice.type === "error" ? "rgba(248,113,113,0.2)" : "rgba(74,222,128,0.2)"}`, color: vehicleNotice.type === "error" ? "#f87171" : "#4ade80", fontSize: 13, fontWeight: 600 }}>
+                        {vehicleNotice.message}
+                      </div>
+                    )}
+                    <div style={{ display: "flex", gap: 12 }}>
+                      <button type="submit" disabled={vehicleSaving} style={{ flex: 1, padding: "12px", borderRadius: 12, border: "none", background: "linear-gradient(135deg,#ff6b00,#ff8c33)", color: "#fff", fontWeight: 800, fontSize: 14, cursor: vehicleSaving ? "not-allowed" : "pointer", opacity: vehicleSaving ? 0.6 : 1 }}>
+                        {vehicleSaving ? "Adding..." : "Add Vehicle"}
+                      </button>
+                      <button type="button" onClick={handleVehicleCancel} style={{ flex: 1, padding: "12px", borderRadius: 12, border: "1px solid #1e2230", background: "transparent", color: "#7a8090", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
                 </div>
-              ) : vehicles.map(v => (
-                <div key={v.id} style={{ background: "#0d0f14", border: "1px solid #1a1d28", borderRadius: 18, padding: "22px 24px", display: "flex", alignItems: "center", gap: 18 }}>
-                  <div style={{ width: 56, height: 56, borderRadius: 14, background: v.type === "Car" ? "rgba(99,210,255,0.08)" : "rgba(192,132,252,0.08)", border: `1px solid ${v.type === "Car" ? "rgba(99,210,255,0.15)" : "rgba(192,132,252,0.15)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>
-                    {v.type === "Car" ? "🚗" : v.type === "Bike" ? "🏍️" : "🚛"}
+              )}
+
+              {/* Vehicle List */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {vehicles.length === 0 && !showVehicleForm ? (
+                  <div style={{ textAlign: "center", padding: "60px 0", color: "#3a4060", background: "#0d0f14", border: "1px solid #1a1d28", borderRadius: 18 }}>
+                    <div style={{ fontSize: 48, marginBottom: 12 }}>🚗</div>
+                    <div style={{ fontWeight: 700, fontSize: 16, color: "#5a6080" }}>No vehicles registered</div>
+                    <div style={{ fontSize: 13, color: "#3a4060", marginTop: 6 }}>Add your vehicle to start booking</div>
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 800, fontSize: 16, color: "#e0e0e0", marginBottom: 4 }}>{v.number}</div>
-                    <div style={{ fontSize: 12, color: "#4a5070" }}>{v.model || ""} · {v.color || ""} · {v.type || ""}</div>
+                ) : (
+                  <>
+                    {vehicles.map(v => {
+                      const visual = getVehicleVisual(v.type);
+                      return (
+                        <div key={v.id} style={{
+                          background: "#0d0f14",
+                          border: v.is_primary ? "2px solid #ff6b00" : "1px solid #1a1d28",
+                          borderRadius: 18,
+                          padding: "22px 24px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 18,
+                          transition: "all 0.2s"
+                        }}
+                          onMouseEnter={e => { e.currentTarget.style.background = "#111318"; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = "#0d0f14"; }}>
+
+                          {/* Icon */}
+                          <div style={{ width: 80, height: 80, borderRadius: 16, background: visual.iconBg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40, flexShrink: 0, border: `2px solid ${visual.iconColor}20` }}>
+                            {visual.icon}
+                          </div>
+
+                          {/* Details */}
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
+                              <div style={{ fontWeight: 900, fontSize: 18, color: "#f0f0f0" }}>{v.number}</div>
+                              {v.is_primary && <span style={{ background: "rgba(255,107,0,0.1)", color: "#ff6b00", padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800, border: "1px solid rgba(255,107,0,0.2)", textTransform: "uppercase", letterSpacing: "0.5px" }}>PRIMARY</span>}
+                            </div>
+                            <div style={{ fontSize: 13, color: "#4a5070" }}>{getVehicleSubtitle(v)}</div>
+                          </div>
+
+                          {/* Actions */}
+                          <div style={{ display: "flex", gap: 10, flexShrink: 0, alignItems: "center" }}>
+                            {!v.is_primary && (
+                              <button
+                                onClick={() => handleAskPrimaryChange(v)}
+                                disabled={vehicleBusyId === v.id}
+                                style={{
+                                  padding: "10px 18px",
+                                  borderRadius: 10,
+                                  border: "1px solid #1e2230",
+                                  background: "transparent",
+                                  color: "#7a8090",
+                                  fontWeight: 700,
+                                  fontSize: 13,
+                                  cursor: vehicleBusyId === v.id ? "not-allowed" : "pointer",
+                                  opacity: vehicleBusyId === v.id ? 0.5 : 1,
+                                  transition: "all 0.2s"
+                                }}
+                                onMouseEnter={e => { if (!vehicleBusyId) { e.target.style.background = "#111318"; e.target.style.borderColor = "#2a2d38"; } }}
+                                onMouseLeave={e => { e.target.style.background = "transparent"; e.target.style.borderColor = "#1e2230"; }}>
+                                Set Primary
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleRemoveVehicle(v)}
+                              disabled={vehicleBusyId === v.id}
+                              style={{
+                                padding: "10px 18px",
+                                borderRadius: 10,
+                                border: "1px solid #f87171",
+                                background: "rgba(248,113,113,0.08)",
+                                color: "#f87171",
+                                fontWeight: 700,
+                                fontSize: 13,
+                                cursor: vehicleBusyId === v.id ? "not-allowed" : "pointer",
+                                opacity: vehicleBusyId === v.id ? 0.5 : 1,
+                                transition: "all 0.2s"
+                              }}
+                              onMouseEnter={e => { if (!vehicleBusyId) { e.target.style.background = "rgba(248,113,113,0.15)"; } }}
+                              onMouseLeave={e => { e.target.style.background = "rgba(248,113,113,0.08)"; }}>
+                                Remove
+                              </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Add New Vehicle Button - Dashed */}
+                    <button
+                      onClick={() => setShowVehicleForm(!showVehicleForm)}
+                      style={{
+                        padding: "24px",
+                        borderRadius: 18,
+                        border: "2px dashed #ff6b00",
+                        background: "transparent",
+                        color: "#ff6b00",
+                        fontWeight: 800,
+                        fontSize: 16,
+                        cursor: "pointer",
+                        transition: "all 0.2s"
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = "rgba(255,107,0,0.08)";
+                        e.currentTarget.style.borderColor = "#ff8c33";
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.borderColor = "#ff6b00";
+                      }}>
+                      + Add New Vehicle
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Confirmation Modal */}
+              {primaryConfirmVehicle && (
+                <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+                  <div style={{ background: "#0d0f14", border: "1px solid #1a1d28", borderRadius: 18, padding: 32, maxWidth: 400, textAlign: "center" }}>
+                    <div style={{ fontSize: 40, marginBottom: 16 }}>⚠️</div>
+                    <div style={{ fontWeight: 800, fontSize: 18, color: "#f0f0f0", marginBottom: 8 }}>Set as Primary?</div>
+                    <div style={{ fontSize: 13, color: "#4a5070", marginBottom: 24 }}>
+                      Set <strong style={{ color: "#ff6b00" }}>{primaryConfirmVehicle.number}</strong> as your primary vehicle?
+                    </div>
+                    <div style={{ display: "flex", gap: 12 }}>
+                      <button onClick={() => setPrimaryConfirmVehicle(null)} style={{ flex: 1, padding: "12px", borderRadius: 10, border: "1px solid #1e2230", background: "transparent", color: "#7a8090", fontWeight: 700, cursor: "pointer" }}>Cancel</button>
+                      <button onClick={handleConfirmPrimaryChange} style={{ flex: 1, padding: "12px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#ff6b00,#ff8c33)", color: "#fff", fontWeight: 800, cursor: "pointer" }}>Confirm</button>
+                    </div>
                   </div>
-                  {v.is_primary && <span style={{ background: "rgba(74,222,128,0.1)", color: "#4ade80", padding: "5px 14px", borderRadius: 20, fontSize: 11, fontWeight: 700, border: "1px solid rgba(74,222,128,0.2)" }}>Primary</span>}
                 </div>
-              ))}
+              )}
             </div>
           )}
 

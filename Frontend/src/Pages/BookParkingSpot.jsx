@@ -38,6 +38,42 @@ const SPOTS = [
     timeFrom:"06:00", timeTo:"22:00", slots:3,
     description:"Underground basement spot in a residential complex. Very secure with elevator access. Ground floor entry is smooth for all car types.",
   },
+  {
+    id:4, name:"Mathura Town Center – Spot A", owner:"Govind Sharma",
+    address:"Krishna Nagar, Mathura, UP 281001", area:"Mathura",
+    lat:27.5031, lng:77.6740, type:"Covered",
+    priceHour:20, priceDay:150, rating:4.6, reviews:29,
+    status:"active", distance:"0.3 km",
+    photo:"https://images.unsplash.com/photo-1506521781263-d8422e82f27a?w=600&q=80",
+    amenities:["CCTV","Covered Roof","Lighting"],
+    availability:{ mon:true,tue:true,wed:true,thu:true,fri:true,sat:true,sun:true },
+    timeFrom:"07:00", timeTo:"22:00", slots:4,
+    description:"Prime covered parking in Mathura city center. Safe and well-monitored. Perfect for shopping and temple visits.",
+  },
+  {
+    id:5, name:"Mathura Main Street – Open Lot", owner:"Meera Patel",
+    address:"Main Bazaar, Mathura, UP 281001", area:"Mathura",
+    lat:27.5020, lng:77.6750, type:"Open Air",
+    priceHour:15, priceDay:100, rating:4.4, reviews:18,
+    status:"active", distance:"0.5 km",
+    photo:"https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=600&q=80",
+    amenities:["CCTV","Lighting"],
+    availability:{ mon:true,tue:true,wed:true,thu:true,fri:true,sat:true,sun:true },
+    timeFrom:"06:00", timeTo:"23:00", slots:6,
+    description:"Large open parking lot near Mathura's main market. Good for short-term parking. Well-lit area with CCTV coverage.",
+  },
+  {
+    id:6, name:"Mathura Temple Parking – Premium", owner:"Ram Kumar",
+    address:"Radhakund Road, Mathura,  UP 281001", area:"Mathura",
+    lat:27.5010, lng:77.6760, type:"Basement",
+    priceHour:25, priceDay:180, rating:4.8, reviews:42,
+    status:"active", distance:"0.7 km",
+    photo:"https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80",
+    amenities:["CCTV","Security Guard","24/7 Access","EV Charging"],
+    availability:{ mon:true,tue:true,wed:true,thu:true,fri:true,sat:true,sun:true },
+    timeFrom:"00:00", timeTo:"23:59", slots:5,
+    description:"Safe, secure basement parking near temples. 24/7 access and professional security team. Premium parking experience.",
+  },
 ];
 
 const DAYS = ["mon","tue","wed","thu","fri","sat","sun"];
@@ -64,13 +100,16 @@ export default function BookParkingSpot(){
   const [filterType, setFilterType] = useState("All");
   const [filterDay, setFilterDay] = useState("All");
   const [sortBy, setSortBy] = useState("rating");
+  const [filterDate, setFilterDate] = useState("");
 
   const filtered = spots
     .filter(s => {
       const q = search.toLowerCase();
+      const dayIndex = filterDate ? new Date(filterDate).getDay() : (filterDay === "All" ? -1 : DAYS.indexOf(filterDay));
+      const dayCheck = filterDate ? (dayIndex === 0 ? s.availability.sun : s.availability[DAYS[dayIndex]]) : (filterDay==="All" || s.availability[filterDay]);
       return (!q || s.name.toLowerCase().includes(q) || s.address.toLowerCase().includes(q) || s.area.toLowerCase().includes(q))
         && (filterType==="All" || s.type===filterType)
-        && (filterDay==="All" || s.availability[filterDay]);
+        && dayCheck;
     })
     .sort((a,b) => sortBy==="price" ? a.priceHour-b.priceHour : sortBy==="rating" ? b.rating-a.rating : parseFloat(a.distance)-parseFloat(b.distance));
 
@@ -126,6 +165,8 @@ export default function BookParkingSpot(){
             <input value={search} onChange={e=>setSearch(e.target.value)}
               placeholder="🔍  Search by name, area or address..."
               className="flex-1 min-w-[180px] bg-[#0d0f14] border border-[#1e2230] rounded-[10px] px-3.5 py-3 text-gray-200 text-sm font-['Outfit',sans-serif] focus:border-[#63d2ff] focus:shadow-[0_0_0_3px_rgba(99,210,255,0.12)] focus:outline-none transition-all"/>
+            <input value={filterDate} onChange={e=>setFilterDate(e.target.value)} type="date"
+              className="w-[140px] bg-[#0d0f14] border border-[#1e2230] rounded-[10px] px-3.5 py-3 text-gray-200 text-sm font-['Outfit',sans-serif] focus:border-[#63d2ff] focus:shadow-[0_0_0_3px_rgba(99,210,255,0.12)] focus:outline-none"/>
             <select value={filterType} onChange={e=>setFilterType(e.target.value)} 
               className="w-[140px] bg-[#0d0f14] border border-[#1e2230] rounded-[10px] px-3.5 py-3 text-gray-200 text-sm font-['Outfit',sans-serif] focus:border-[#63d2ff] focus:shadow-[0_0_0_3px_rgba(99,210,255,0.12)] focus:outline-none">
               <option value="All">All Types</option>
@@ -142,6 +183,15 @@ export default function BookParkingSpot(){
               <option value="price">Lowest Price</option>
               <option value="distance">Nearest</option>
             </select>
+            {/* City Selector */}
+            <div className="flex gap-2 ml-auto">
+              {["Ghaziabad","Mathura"].map(city=>(
+                <button key={city} onClick={()=>setSearch(city)}
+                  className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${search.includes(city) ? "bg-gradient-to-r from-[#63d2ff] to-[#3a8fff] text-[#080a0f]" : "bg-[#13161f] text-gray-400 border border-[#1e2230] hover:border-[#63d2ff]"}`}>
+                  📍 {city}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Count */}
@@ -336,7 +386,7 @@ export default function BookParkingSpot(){
 function BookingForm({spot, onConfirm, onBack}){
   const [form, setForm] = useState({
     name:"", phone:"", vehicle:"", vehicleType:"Car",
-    date:"", timeFrom:"", timeTo:"", durationType:"hourly",
+    booking_date:"", timeFrom:"", timeTo:"", durationType:"hourly",
   });
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -366,7 +416,7 @@ function BookingForm({spot, onConfirm, onBack}){
   const canNext = step===1
     ? form.name&&form.phone&&form.vehicle
     : step===2
-    ? form.date&&(form.durationType==="daily"||( form.timeFrom&&form.timeTo&&calcTotal()>0))
+    ? form.booking_date&&(form.durationType==="daily"||( form.timeFrom&&form.timeTo&&calcTotal()>0))
     : true;
 
   return(
@@ -448,7 +498,7 @@ function BookingForm({spot, onConfirm, onBack}){
           <h2 className="font-['Outfit',sans-serif] text-xl font-extrabold m-0 mb-1 tracking-tight">Pick Your Schedule</h2>
           <div>
             <label className="text-xs font-semibold text-gray-600 tracking-wide uppercase block mb-1.5">Date</label>
-            <input value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}
+            <input value={form.booking_date} onChange={e=>setForm(f=>({...f,booking_date:e.target.value}))}
               type="date" min={dateToday} 
               className="w-full bg-[#0d0f14] border border-[#1e2230] rounded-[10px] px-3.5 py-3 text-gray-200 text-sm font-['Outfit',sans-serif] focus:border-[#63d2ff] focus:shadow-[0_0_0_3px_rgba(99,210,255,0.12)] focus:outline-none"/>
           </div>
@@ -502,7 +552,7 @@ function BookingForm({spot, onConfirm, onBack}){
               ["Spot",spot.name],["Location",spot.address],
               ["Name",form.name],["Phone",form.phone],
               ["Vehicle",`${form.vehicle} (${form.vehicleType})`],
-              ["Date",form.date],
+              ["Date",form.booking_date],
               ["Time",form.durationType==="daily"?"Full Day":`${form.timeFrom} – ${form.timeTo}`],
             ].map(([k,v],i)=>(
               <div key={k} className={`flex justify-between px-5 py-3.5 ${i<6 ? 'border-b border-[#13161f]' : ''}`}>
@@ -594,7 +644,7 @@ function ConfirmScreen({data, onDone}){
           {[
             ["Spot",spot.name],["Address",spot.address],
             ["Name",form.name],["Vehicle",`${form.vehicle} · ${form.vehicleType}`],
-            ["Date",form.date],["Time",form.durationType==="daily"?"Full Day":`${form.timeFrom} – ${form.timeTo}`],
+            ["Date",form.booking_date],["Time",form.durationType==="daily"?"Full Day":`${form.timeFrom} – ${form.timeTo}`],
           ].map(([k,v],i)=>(
             <div key={k} className={`flex justify-between px-6 py-2.5 ${i<5 ? 'border-b border-[#0f1116]' : ''}`}>
               <span className="text-xs text-gray-600">{k}</span>

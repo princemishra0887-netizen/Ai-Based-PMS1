@@ -34,19 +34,6 @@ document.head.appendChild(css);
 
 /* ── Data (demo spots/bookings – owner comes from Supabase) ──  */
 
-const INIT_SPOTS = [
-  { id:1, name:"Front Yard – Spot A", type:"Open Air", address:"12, MG Road, Ghaziabad", priceHour:30, priceDay:200, status:"active", bookings:38, revenue:9200, rating:4.7, reviews:38, photo:"https://images.unsplash.com/photo-1590674899484-d5640e854abe?w=500&q=80", availability:{mon:true,tue:true,wed:true,thu:true,fri:true,sat:false,sun:false}, timeFrom:"08:00", timeTo:"20:00", amenities:["CCTV","Lighting","Wide Gate"], slots:2 },
-  { id:2, name:"Side Lane – Spot B", type:"Covered", address:"12, MG Road, Ghaziabad", priceHour:50, priceDay:320, status:"active", bookings:61, revenue:18600, rating:4.9, reviews:61, photo:"https://images.unsplash.com/photo-1506521781263-d8422e82f27a?w=500&q=80", availability:{mon:true,tue:true,wed:true,thu:true,fri:true,sat:true,sun:true}, timeFrom:"00:00", timeTo:"23:59", amenities:["CCTV","Covered Roof","Security Guard","EV Charging"], slots:1 },
-];
-
-const BOOKINGS = [
-  { id:"PK7A2B", user:"Aditya Sharma", vehicle:"UP 14 AB 1234", spot:"Front Yard – Spot A", spotId:1, date:"2025-03-15", time:"09:00–13:00", amount:120, type:"hourly", status:"active", phone:"9876001234" },
-  { id:"PK9C4D", user:"Neha Patel",    vehicle:"DL 3C ZB 0012",  spot:"Side Lane – Spot B", spotId:2, date:"2025-03-15", time:"Full Day",   amount:320, type:"daily",  status:"active", phone:"9812009900" },
-  { id:"PK1E5F", user:"Rohit Das",     vehicle:"UP 16 CD 5678",  spot:"Front Yard – Spot A", spotId:1, date:"2025-03-14", time:"10:00–18:00",amount:320, type:"hourly", status:"completed", phone:"9834001100" },
-  { id:"PK3G6H", user:"Kavya Nair",    vehicle:"MH 02 AB 9900",  spot:"Side Lane – Spot B", spotId:2, date:"2025-03-14", time:"08:00–10:00",amount:100, type:"hourly", status:"cancelled", phone:"9823004455" },
-  { id:"PK5I7J", user:"Suresh Rao",    vehicle:"KA 01 MN 1122",  spot:"Front Yard – Spot A", spotId:1, date:"2025-03-13", time:"Full Day",   amount:200, type:"daily",  status:"completed", phone:"9900112233" },
-  { id:"PK2K8L", user:"Ankita Joshi",  vehicle:"UP 14 XY 3344",  spot:"Side Lane – Spot B", spotId:2, date:"2025-03-12", time:"11:00–15:00",amount:200, type:"hourly", status:"completed", phone:"9811223344" },
-];
 
 const EARN_MONTHLY = [
   {month:"Oct",earn:4200},{month:"Nov",earn:6800},{month:"Dec",earn:8100},
@@ -81,17 +68,35 @@ function EarnChart({data}){
 /* ── Input Style ── */
 const inp = (ex={})=>({width:"100%",background:"#faf8f5",border:"1px solid #e0d8cc",borderRadius:10,padding:"11px 14px",color:"#2a1f0f",fontSize:14,fontFamily:"'Plus Jakarta Sans',sans-serif",transition:"border-color 0.2s,box-shadow 0.2s",...ex});
 
-const BLANK_SPOT={name:"",type:"Open Air",address:"",priceHour:"",priceDay:"",timeFrom:"08:00",timeTo:"20:00",status:"active",availability:{mon:true,tue:true,wed:true,thu:true,fri:true,sat:false,sun:false},amenities:[],photo:null,photoPreview:null,slots:1};
+const BLANK_SPOT={name:"",type:"Open Air",address:"",priceHour:"",priceDay:"",timeFrom:"08:00",timeTo:"20:00",status:"active",availability:{mon:true,tue:true,wed:true,thu:true,fri:true,sat:false,sun:false},amenities:[],slots:1};
 const AMENITY_OPTS=["CCTV","Lighting","Covered Roof","Security Guard","EV Charging","Wide Gate","24/7 Access","Wheelchair Access"];
 
 /* ══════════════════════════════════════════════
    MAIN
 ══════════════════════════════════════════════ */
 export default function LandOwnerDashBoard(){
+    // Approve/Reject handlers for pending requests
+    async function handleApproveRequest(bookingId) {
+      const { error } = await supabase.from('bookings').update({ status: 'active' }).eq('id', bookingId);
+      if (!error) {
+        setBookings(bookings => bookings.map(b => b.id === bookingId ? { ...b, status: 'active' } : b));
+      } else {
+        alert('Failed to approve request.');
+      }
+    }
+
+    async function handleRejectRequest(bookingId) {
+      const { error } = await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', bookingId);
+      if (!error) {
+        setBookings(bookings => bookings.map(b => b.id === bookingId ? { ...b, status: 'cancelled' } : b));
+      } else {
+        alert('Failed to reject request.');
+      }
+    }
   const navigate = useNavigate();
   const [page,setPage]=useState("overview");
-  const [spots,setSpots]=useState(INIT_SPOTS);
-  const [bookings]=useState(BOOKINGS);
+  const [spots,setSpots]=useState([]);
+  const [bookings, setBookings]=useState([]);
   const [sideOpen,setSideOpen]=useState(true);
   const [showAddSpot,setShowAddSpot]=useState(false);
   const [editSpot,setEditSpot]=useState(null);
@@ -114,7 +119,6 @@ export default function LandOwnerDashBoard(){
         
         const { profile: prof } = await fetchProfileByUser(user);
         if (prof) {
-          if (prof.role === 'user') { navigate(getDashboardRouteForRole(prof.role)); return; }
           setOwnerProfile(prof);
         }
 
@@ -182,8 +186,8 @@ export default function LandOwnerDashBoard(){
       time_from: form.timeFrom,
       time_to: form.timeTo,
       amenities: form.amenities,
-      photo: form.photo,
-      slots: Number(form.slots)
+      total_slots: Number(form.slots),
+      available_slots: Number(form.slots)
     };
 
     let error;
@@ -219,7 +223,8 @@ export default function LandOwnerDashBoard(){
       priceHour: spot.price_hour,
       priceDay: spot.price_day,
       timeFrom: spot.time_from,
-      timeTo: spot.time_to
+      timeTo: spot.time_to,
+      slots: spot.total_slots
     }); 
     setEditSpot(spot.id); 
     setShowAddSpot(true); 
@@ -278,7 +283,7 @@ export default function LandOwnerDashBoard(){
         <nav style={{flex:1,padding:"8px 10px",display:"flex",flexDirection:"column",gap:2}}>
           {NAV.map(n=>(
             <button key={n.key} className={`nav-link${page===n.key?" active":""}`}
-              onClick={()=>setPage(n.key)}
+              onClick={()=>{setPage(n.key); setShowAddSpot(false); setDetailSpot(null);}}
               style={{width:"100%",display:"flex",alignItems:"center",gap:12,padding:sideOpen?"11px 14px":"11px 0",justifyContent:sideOpen?"flex-start":"center",borderRadius:11,border:"none",cursor:"pointer",textAlign:"left",background:"transparent",color:page===n.key?"#fff":"#7a6040",fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:600,whiteSpace:"nowrap"}}>
               <span style={{fontSize:17,flexShrink:0}}>{n.icon}</span>
               {sideOpen&&<span>{n.label}</span>}
@@ -327,6 +332,28 @@ export default function LandOwnerDashBoard(){
         </header>
 
         <main style={{flex:1,padding:"28px",animation:"slideUp 0.35s ease"}}>
+
+          {/* ══ PENDING PARKING REQUESTS SECTION ══ */}
+          {page === "bookings" && bookings.filter(b => b.status === "pending").length > 0 && (
+            <div style={{marginBottom:32}}>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:800,color:"#a07840",marginBottom:14}}>Pending Parking Requests</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:18}}>
+                {bookings.filter(b => b.status === "pending").map(b => (
+                  <div key={b.id} style={{background:"#fffbe8",border:"1px solid #f7e6b0",borderRadius:14,padding:18,minWidth:260,boxShadow:"0 2px 8px rgba(160,120,64,0.07)"}}>
+                    <div style={{fontWeight:700,fontSize:15,color:"#7a5c30",marginBottom:6}}>{b.user_name || "User"}</div>
+                    <div style={{fontSize:13,color:"#b0a070",marginBottom:4}}><b>Vehicle:</b> {b.vehicle_number || "-"}</div>
+                    <div style={{fontSize:13,color:"#b0a070",marginBottom:4}}><b>Vehicle Type:</b> {b.vehicle_type || "-"}</div>
+                    <div style={{fontSize:13,color:"#b0a070",marginBottom:4}}><b>Spot ID:</b> {b.spot_id?.slice(0,8) || "-"}</div>
+                    <div style={{fontSize:12,color:"#a07840",marginTop:8}}><b>Date:</b> {b.booking_date} <b>Time:</b> {b.start_time?.slice(0,5) || "-"}</div>
+                    <div style={{display:"flex",gap:10,marginTop:14}}>
+                      <button onClick={()=>handleApproveRequest(b.id)} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",background:"linear-gradient(135deg,#1a6e42,#4ade80)",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>Approve</button>
+                      <button onClick={()=>handleRejectRequest(b.id)} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",background:"linear-gradient(135deg,#b91c1c,#f87171)",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>Reject</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* ══ OVERVIEW ══ */}
           {page==="overview"&&!showAddSpot&&!detailSpot&&(
@@ -454,7 +481,7 @@ export default function LandOwnerDashBoard(){
                       <div style={{display:"flex",gap:8}}>
                         <button onClick={()=>setDetailSpot(spot)} style={{flex:1,padding:"9px",borderRadius:9,border:"1px solid #e0d0b0",background:"transparent",color:"#7a5c30",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'Plus Jakarta Sans',sans-serif"}}>View</button>
                         <button onClick={()=>openEdit(spot)} style={{flex:1,padding:"9px",borderRadius:9,border:"none",background:"linear-gradient(135deg,#7a5c30,#c8964a)",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Edit</button>
-                        <button onClick={()=>toggleSpotStatus(spot.id)} style={{flex:1,padding:"9px",borderRadius:9,border:`1px solid ${spot.status==="active"?"#f8a0a0":"#90d0a8"}`,background:"transparent",color:spot.status==="active"?"#c04040":"#1a6e42",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{spot.status==="active"?"Pause":"Activate"}</button>
+                        <button onClick={()=>toggleSpotStatus(spot.id, spot.status)} style={{flex:1,padding:"9px",borderRadius:9,border:`1px solid ${spot.status==="active"?"#f8a0a0":"#90d0a8"}`,background:"transparent",color:spot.status==="active"?"#c04040":"#1a6e42",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{spot.status==="active"?"Pause":"Activate"}</button>
                       </div>
                     </div>
                   </div>
@@ -489,7 +516,7 @@ export default function LandOwnerDashBoard(){
                     </div>
                     <div style={{display:"flex",gap:10}}>
                       <button onClick={()=>openEdit(spot)} style={{flex:1,padding:"12px",borderRadius:12,border:"none",background:"linear-gradient(135deg,#7a5c30,#c8964a)",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>✏️ Edit Spot</button>
-                      <button onClick={()=>toggleSpotStatus(spot.id)} style={{flex:1,padding:"12px",borderRadius:12,border:`1px solid ${spot.status==="active"?"#f0a090":"#90d0a8"}`,background:"transparent",color:spot.status==="active"?"#c04040":"#1a6e42",fontWeight:700,fontSize:13,cursor:"pointer"}}>{spot.status==="active"?"⏸ Pause":"▶ Activate"}</button>
+                      <button onClick={()=>toggleSpotStatus(spot.id, spot.status)} style={{flex:1,padding:"12px",borderRadius:12,border:`1px solid ${spot.status==="active"?"#f0a090":"#90d0a8"}`,background:"transparent",color:spot.status==="active"?"#c04040":"#1a6e42",fontWeight:700,fontSize:13,cursor:"pointer"}}>{spot.status==="active"?"⏸ Pause":"▶ Activate"}</button>
                       <button onClick={()=>removeSpot(spot.id)} style={{padding:"12px 16px",borderRadius:12,border:"1px solid #f0a090",background:"transparent",color:"#c04040",fontSize:13,cursor:"pointer"}}>🗑</button>
                     </div>
                   </div>
@@ -682,12 +709,12 @@ function BookingsTable({bookings}){
         <tbody>
           {bookings.map(b=>(
             <tr key={b.id} className="row-hover" style={{borderBottom:"1px solid #faf8f5",transition:"background 0.15s"}}>
-              <td style={{padding:"12px 14px"}}><span style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:11,fontWeight:700,color:"#a07840",background:"#f0e8d8",padding:"3px 8px",borderRadius:6}}>{b.id}</span></td>
-              <td style={{padding:"12px 14px"}}><div style={{fontWeight:600,fontSize:13,color:"#1c140a"}}>{b.user}</div><div style={{fontSize:11,color:"#c8b89a"}}>{b.phone}</div></td>
-              <td style={{padding:"12px 14px",fontSize:12,color:"#8a7060",fontWeight:500}}>{b.vehicle}</td>
-              <td style={{padding:"12px 14px",fontSize:12,color:"#6a5040",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.spot}</td>
-              <td style={{padding:"12px 14px"}}><div style={{fontSize:12,color:"#1c140a"}}>{b.date}</div><div style={{fontSize:10,color:"#c8b89a"}}>{b.time}</div></td>
-              <td style={{padding:"12px 14px",fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,fontSize:13,color:"#1a6e42"}}>{`₹${b.amount}`}</td>
+              <td style={{padding:"12px 14px"}}><span style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:11,fontWeight:700,color:"#a07840",background:"#f0e8d8",padding:"3px 8px",borderRadius:6}}>{b.id?.slice(0,8)}</span></td>
+              <td style={{padding:"12px 14px"}}><div style={{fontWeight:600,fontSize:13,color:"#1c140a"}}>{b.user_name || "User"}</div><div style={{fontSize:11,color:"#c8b89a"}}>{b.user_phone || "-"}</div></td>
+              <td style={{padding:"12px 14px",fontSize:12,color:"#8a7060",fontWeight:500}}>{b.vehicle_number || "-"}</td>
+              <td style={{padding:"12px 14px",fontSize:12,color:"#6a5040",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.vehicle_type || "-"}</td>
+              <td style={{padding:"12px 14px"}}><div style={{fontSize:12,color:"#1c140a"}}>{b.booking_date}</div><div style={{fontSize:10,color:"#c8b89a"}}>{b.start_time?.slice(0,5) || "-"}</div></td>
+              <td style={{padding:"12px 14px",fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,fontSize:13,color:"#1a6e42"}}>{`₹${b.amount || 0}`}</td>
               <td style={{padding:"12px 14px"}}><Badge s={b.status}/></td>
             </tr>
           ))}
