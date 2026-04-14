@@ -1,354 +1,117 @@
-import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import OTPPage from "./loginOTP";
 import { supabase } from "../lib/supabaseClient";
 import { fetchProfileByUser, getDashboardRouteForRole } from "../lib/profileHelpers";
 
-const Login = () => {
-  const [page, setPage] = useState("login");
+export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [userType, setUserType] = useState("user"); // "user" or "landowner"
-  
+  const [userType, setUserType] = useState("user");
   const navigate = useNavigate();
 
-  // Custom cursor effect for ParkEase theme
-  useEffect(() => {
-    const cur = document.getElementById("cur");
-    const curR = document.getElementById("cur-r");
-    if (!cur || !curR) return;
-
-    let mx = 0,
-      my = 0,
-      rx = 0,
-      ry = 0;
-
-    const onMouseMove = (e) => {
-      mx = e.clientX;
-      my = e.clientY;
-      cur.style.left = mx + "px";
-      cur.style.top = my + "px";
-    };
-
-    window.addEventListener("mousemove", onMouseMove);
-
-    let animationFrame;
-    const animate = () => {
-      rx += (mx - rx) * 0.13;
-      ry += (my - ry) * 0.13;
-      curR.style.left = rx + "px";
-      curR.style.top = ry + "px";
-      animationFrame = requestAnimationFrame(animate);
-    };
-    animate();
-
-    const interactiveElements = document.querySelectorAll("button, a, input");
-    const addHover = () => document.body.classList.add("hov");
-    const removeHover = () => document.body.classList.remove("hov");
-
-    interactiveElements.forEach((el) => {
-      el.addEventListener("mouseenter", addHover);
-      el.addEventListener("mouseleave", removeHover);
-    });
-
-    return () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      cancelAnimationFrame(animationFrame);
-      interactiveElements.forEach((el) => {
-        el.removeEventListener("mouseenter", addHover);
-        el.removeEventListener("mouseleave", removeHover);
-      });
-    };
-  }, []);
-
-  const destination = email;
-
-  const handleNext = async () => {
+  const handleLogin = async () => {
     setError("");
-    if (!email) {
-      setError("Please enter your email address.");
-      return;
-    }
-    if (!password) {
-      setError("Please enter your password.");
-      return;
-    }
-
+    if (!email) { setError("Please enter your email address."); return; }
+    if (!password) { setError("Please enter your password."); return; }
     setLoading(true);
-
     try {
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
-
-      if (authError) {
-        setLoading(false);
-        setError(authError.message);
-        return;
-      }
-
-      const userId = authData.user?.id;
-      if (userId) {
-        const { profile } = await fetchProfileByUser(authData.user);
-        const role = profile?.role || 'user';
-        localStorage.setItem("userRole", role);
-        localStorage.setItem("user", JSON.stringify({
-          ...authData.user,
-          name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim(),
-          role
-        }));
-
-        setLoading(false);
-        window.location.href = getDashboardRouteForRole(role);
-      } else {
-        setLoading(false);
-        window.location.href = '/dashboard/user';
-      }
+      if (authError) { setError(authError.message); return; }
+      const { profile } = await fetchProfileByUser(authData.user);
+      const role = profile?.role || "user";
+      localStorage.setItem("userRole", role);
+      localStorage.setItem("user", JSON.stringify({ ...authData.user, name: `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim(), role }));
+      window.location.href = getDashboardRouteForRole(role);
     } catch (err) {
-      setLoading(false);
       setError(err.message || "Login failed");
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (page === "otp") {
-    return (
-      <>
-        {/* Custom Cursor Elements */}
-        <div
-          id="cur"
-          className="fixed w-3 h-3 bg-orange-500 rounded-full pointer-events-none z-[9999] mix-blend-difference"
-          style={{ transform: "translate(-50%, -50%)" }}
-        />
-        <div
-          id="cur-r"
-          className="fixed w-11 h-11 border-2 border-orange-500/35 rounded-full pointer-events-none z-[9998]"
-          style={{ transform: "translate(-50%, -50%)" }}
-        />
-
-        {/* Background Elements */}
-        <div className="fixed inset-0 pointer-events-none z-0">
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage:
-                "linear-gradient(rgba(249,115,22,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(249,115,22,.035) 1px, transparent 1px)",
-              backgroundSize: "56px 56px",
-              maskImage:
-                "radial-gradient(ellipse 90% 90% at 50% 50%, black 20%, transparent 100%)",
-            }}
-          />
-          <div
-            className="absolute inset-0 opacity-[0.025]"
-            style={{
-              backgroundImage:
-                "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
-            }}
-          />
-        </div>
-
-        <div className="relative z-10 flex min-h-screen items-center justify-center bg-black px-4">
-          <OTPPage
-            destination={destination}
-            userType={userType}
-            onBack={() => setPage("login")}
-          />
-        </div>
-      </>
-    );
-  }
+  const F = (e) => { e.target.style.borderColor = "#f97316"; e.target.style.boxShadow = "0 0 0 3px rgba(249,115,22,0.15)"; };
+  const B = (e) => { e.target.style.borderColor = "rgba(249,115,22,0.15)"; e.target.style.boxShadow = ""; };
 
   return (
-    <>
-      {/* Custom Cursor Elements */}
-      <div
-        id="cur"
-        className="fixed w-3 h-3 bg-orange-500 rounded-full pointer-events-none z-[9999] mix-blend-difference"
-        style={{ transform: "translate(-50%, -50%)" }}
-      />
-      <div
-        id="cur-r"
-        className="fixed w-11 h-11 border-2 border-orange-500/35 rounded-full pointer-events-none z-[9998]"
-        style={{ transform: "translate(-50%, -50%)" }}
-      />
+    <div style={{ minHeight: "100vh", background: "#080808", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", padding: "20px", position: "relative", overflow: "hidden" }}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Bebas+Neue&display=swap" rel="stylesheet" />
 
-      {/* Background Elements */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(249,115,22,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(249,115,22,.035) 1px, transparent 1px)",
-            backgroundSize: "56px 56px",
-            maskImage:
-              "radial-gradient(ellipse 90% 90% at 50% 50%, black 20%, transparent 100%)",
-          }}
-        />
-        <div
-          className="absolute inset-0 opacity-[0.025]"
-          style={{
-            backgroundImage:
-              "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
-          }}
-        />
+      {/* Grid Background */}
+      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, backgroundImage: "linear-gradient(rgba(249,115,22,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(249,115,22,0.04) 1px, transparent 1px)", backgroundSize: "60px 60px", maskImage: "radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%)" }} />
+
+      {/* Orange Glow */}
+      <div style={{ position: "absolute", width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle, rgba(249,115,22,0.08) 0%, transparent 70%)", top: "50%", left: "50%", transform: "translate(-50%, -60%)", pointerEvents: "none" }} />
+
+      {/* Card */}
+      <div style={{ position: "relative", zIndex: 10, width: "100%", maxWidth: 480, background: "rgba(12,10,8,0.9)", border: "1px solid rgba(249,115,22,0.15)", borderRadius: 20, padding: "40px 36px", backdropFilter: "blur(20px)", boxShadow: "0 32px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(249,115,22,0.05)" }}>
+
+        {/* Logo */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 32 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg, #f97316, #ea580c)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: "0 0 24px rgba(249,115,22,0.4)" }}>🅿</div>
+          <span style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 28, letterSpacing: "2px", color: "#e8e4dc" }}>ParkEase</span>
+        </div>
+
+        <h1 style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 38, letterSpacing: "1px", color: "#e8e4dc", textAlign: "center", marginBottom: 4 }}>Welcome Back</h1>
+        <p style={{ fontSize: 13, color: "#666", textAlign: "center", marginBottom: 28 }}>Sign in to continue to your dashboard</p>
+
+        {/* Role Toggle */}
+        <div style={{ marginBottom: 24 }}>
+          <span style={{ fontSize: 10, fontWeight: 600, color: "#555", letterSpacing: "1.5px", textTransform: "uppercase", display: "block", marginBottom: 10 }}>I am a</span>
+          <div style={{ display: "flex", gap: 10 }}>
+            {[{ key: "user", icon: "👤", label: "Driver", sub: "Find & book parking" }, { key: "landowner", icon: "🏢", label: "Land Owner", sub: "Manage properties" }].map(r => (
+              <button key={r.key} onClick={() => setUserType(r.key)}
+                style={{ flex: 1, padding: "14px 12px", borderRadius: 12, border: userType === r.key ? "1px solid rgba(249,115,22,0.5)" : "1px solid rgba(255,255,255,0.06)", background: userType === r.key ? "rgba(249,115,22,0.08)" : "rgba(255,255,255,0.02)", cursor: "pointer", textAlign: "center", transition: "all 0.2s", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                <span style={{ fontSize: 24 }}>{r.icon}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: userType === r.key ? "#f97316" : "#777" }}>{r.label}</span>
+                <span style={{ fontSize: 10, color: userType === r.key ? "rgba(249,115,22,0.7)" : "#444" }}>{r.sub}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Email */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 10, fontWeight: 600, color: "#555", letterSpacing: "1.5px", textTransform: "uppercase", display: "block", marginBottom: 7 }}>Email Address</label>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+            placeholder={userType === "landowner" ? "owner@parkease.com" : "user@example.com"}
+            style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(249,115,22,0.15)", borderRadius: 10, padding: "12px 14px", color: "#e8e4dc", fontSize: 14, fontFamily: "'DM Sans', sans-serif", outline: "none", transition: "all 0.2s", boxSizing: "border-box" }}
+            onFocus={F} onBlur={B} onKeyDown={e => e.key === "Enter" && handleLogin()} />
+        </div>
+
+        {/* Password */}
+        <div style={{ marginBottom: 20, position: "relative" }}>
+          <label style={{ fontSize: 10, fontWeight: 600, color: "#555", letterSpacing: "1.5px", textTransform: "uppercase", display: "block", marginBottom: 7 }}>Password</label>
+          <input type={showPass ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)}
+            placeholder="••••••••"
+            style={{ width: "100%", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(249,115,22,0.15)", borderRadius: 10, padding: "12px 44px 12px 14px", color: "#e8e4dc", fontSize: 14, fontFamily: "'DM Sans', sans-serif", outline: "none", transition: "all 0.2s", boxSizing: "border-box" }}
+            onFocus={F} onBlur={B} onKeyDown={e => e.key === "Enter" && handleLogin()} />
+          <button onClick={() => setShowPass(!showPass)} style={{ position: "absolute", right: 12, bottom: 10, background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#555" }}>
+            {showPass ? "👁️" : "👁️‍🗨️"}
+          </button>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171", fontSize: 13, fontWeight: 600, marginBottom: 12 }}>
+            ⚠ {error}
+          </div>
+        )}
+
+        {/* Submit */}
+        <button onClick={handleLogin} disabled={loading}
+          style={{ width: "100%", padding: "14px", borderRadius: 12, border: "none", background: loading ? "rgba(249,115,22,0.2)" : "linear-gradient(135deg, #f97316, #ea580c)", color: loading ? "#555" : "#fff", fontWeight: 700, fontSize: 15, cursor: loading ? "not-allowed" : "pointer", boxShadow: loading ? "none" : "0 4px 20px rgba(249,115,22,0.35)", transition: "all 0.2s", letterSpacing: "0.5px", fontFamily: "'DM Sans', sans-serif" }}>
+          {loading ? "Signing in..." : "Continue →"}
+        </button>
+
+        {/* Footer */}
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 20, fontSize: 13 }}>
+          <button style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>Forgot password?</button>
+          <button onClick={() => navigate("/auth/signup")} style={{ background: "none", border: "none", color: "#f97316", cursor: "pointer", fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>Sign up →</button>
+        </div>
       </div>
-
-      <div className="relative z-10 flex min-h-screen items-center justify-center bg-black px-4">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key="login"
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-            className="w-full max-w-[520px]"
-          >
-            {/* Logo - Made bigger */}
-            <div className="mb-10 text-center">
-              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 shadow-xl">
-                <span className="text-2xl font-bold text-white">🅿</span>
-              </div>
-              <h1 className="font-['Bebas_Neue'] text-5xl tracking-tight text-white">
-                Sign in to ParkEase
-              </h1>
-              <p className="mt-2 text-base text-gray-400">
-                Access your dashboard to manage zones and occupancy.
-              </p>
-            </div>
-
-            {/* Card - Made bigger with more padding */}
-            <div className="rounded-2xl bg-gray-900/50 backdrop-blur-sm border border-white/10 p-10">
-              {/* Who Am I? Section - Made bigger */}
-              <div className="mb-8">
-                <label className="mb-3 block text-sm font-medium uppercase tracking-wider text-gray-400">
-                  Who am I?
-                </label>
-                <div className="flex gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setUserType("user")}
-                    className={`flex-1 py-3 px-4 rounded-xl transition-all duration-200 ${
-                      userType === "user"
-                        ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg"
-                        : "bg-gray-800/50 border border-white/10 text-gray-400 hover:bg-gray-800/70"
-                    }`}
-                  >
-                    <div className="flex items-center justify-center gap-3">
-                      <span className="text-2xl">👤</span>
-                      <span className="text-base font-semibold">User</span>
-                    </div>
-                    <p className="text-xs mt-1.5 opacity-80">Find & book parking</p>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setUserType("landowner")}
-                    className={`flex-1 py-3 px-4 rounded-xl transition-all duration-200 ${
-                      userType === "landowner"
-                        ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg"
-                        : "bg-gray-800/50 border border-white/10 text-gray-400 hover:bg-gray-800/70"
-                    }`}
-                  >
-                    <div className="flex items-center justify-center gap-3">
-                      <span className="text-2xl">🏢</span>
-                      <span className="text-base font-semibold">Land Owner</span>
-                    </div>
-                    <p className="text-xs mt-1.5 opacity-80">Manage your properties</p>
-                  </button>
-                </div>
-              </div>
-
-              {/* Segmented Control removed - Email only login */}
-
-              {/* Input Fields - Made bigger */}
-              <div className="space-y-5">
-                <div>
-                  <label className="mb-2 block text-sm font-medium uppercase tracking-wider text-gray-400">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder={
-                      userType === "landowner"
-                        ? "owner@parkease.com"
-                        : "user@example.com"
-                    }
-                    className="h-12 w-full rounded-xl border border-white/10 bg-gray-800/50 px-4 text-base text-white placeholder:text-gray-500 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
-                  />
-                </div>
-
-                {/* Password Field - Made bigger */}
-                <div>
-                  <label className="mb-2 block text-sm font-medium uppercase tracking-wider text-gray-400">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="h-12 w-full rounded-xl border border-white/10 bg-gray-800/50 px-4 pr-12 text-base text-white placeholder:text-gray-500 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors text-xl"
-                    >
-                      {showPassword ? "👁️" : "👁️‍🗨️"}
-                    </button>
-                  </div>
-                </div>
-
-                {error && (
-                  <motion.p
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-sm text-red-400"
-                  >
-                    {error}
-                  </motion.p>
-                )}
-
-                {/* Next Button - Made bigger */}
-                <button
-                  type="button"
-                  onClick={handleNext}
-                  disabled={loading}
-                  className="relative mt-3 h-12 w-full rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-base font-semibold text-white shadow-lg transition-all hover:shadow-orange-500/25 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? "Sending..." : "Continue"}
-                </button>
-              </div>
-
-              {/* Footer Links - Made bigger */}
-              <div className="mt-8 flex items-center justify-between text-sm">
-                <button
-                  type="button"
-                  className="text-gray-400 transition-colors hover:text-orange-500"
-                >
-                  Forgot password?
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate('/auth/signup')}
-                  className="text-gray-400 transition-colors hover:text-orange-500"
-                >
-                  Sign up →
-                </button>
-              </div>
-            </div>
-
-            <p className="mt-8 text-center text-sm text-gray-500">
-              © 2026 ParkEase. All rights reserved.
-            </p>
-          </motion.div>
-        </AnimatePresence>
-      </div>
-    </>
+    </div>
   );
-};
-
-export default Login;
+}

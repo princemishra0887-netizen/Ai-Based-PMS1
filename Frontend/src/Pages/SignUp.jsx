@@ -284,7 +284,7 @@ const SecureIdRegistration = () => {
             idx + 1 < step
               ? 'bg-green-500 text-white'
               : idx + 1 === step
-              ? 'bg-indigo-500 text-white ring-2 ring-indigo-300'
+              ? 'bg-orange-500 text-white ring-2 ring-orange-300'
               : 'bg-gray-700 text-gray-400'
           }`}
         >
@@ -300,15 +300,15 @@ const SecureIdRegistration = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-black to-[#050505] flex items-center justify-center p-4">
       <div className="max-w-2xl w-full">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-3">
-            <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-pink-500 rounded-xl flex items-center justify text-2xl">
+            <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl flex items-center justify text-2xl">
               🛡️
             </div>
-            <span className="font-mono text-xl font-bold bg-gradient-to-r from-indigo-400 to-pink-400 bg-clip-text text-transparent">
+            <span className="font-mono text-xl font-bold bg-gradient-to-r from-orange-500 to-orange-500 bg-clip-text text-transparent">
               SecureID
             </span>
           </div>
@@ -321,7 +321,7 @@ const SecureIdRegistration = () => {
         </div>
 
         {/* Main Card */}
-        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-3xl p-6 md:p-8 shadow-2xl">
+        <div className="bg-[#0a0a0a]/90 backdrop-blur-sm border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl">
           {/* Role Selection (only on step 1) */}
           {step === 1 && (
             <div className="mb-8">
@@ -336,9 +336,9 @@ const SecureIdRegistration = () => {
                     className={`p-4 rounded-xl border-2 transition-all ${
                       role === r
                         ? r === 'landOwner'
-                          ? 'border-amber-500 bg-amber-500/10'
-                          : 'border-indigo-500 bg-indigo-500/10'
-                        : 'border-gray-700 bg-gray-700/50'
+                          ? 'border-orange-500 bg-orange-500/10'
+                          : 'border-orange-500 bg-orange-500/10'
+                        : 'border-white/10 bg-[#111318]'
                     }`}
                   >
                     <div className="text-2xl mb-2">{r === 'landOwner' ? '🏠' : '👤'}</div>
@@ -370,7 +370,7 @@ const SecureIdRegistration = () => {
                       name="firstName"
                       value={formData.firstName}
                       onChange={handleInputChange}
-                      className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
+                      className="w-full bg-[#111318] border border-orange-500/15 rounded-xl px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
                       placeholder="Rahul"
                     />
                   </div>
@@ -383,7 +383,7 @@ const SecureIdRegistration = () => {
                       name="lastName"
                       value={formData.lastName}
                       onChange={handleInputChange}
-                      className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
+                      className="w-full bg-[#111318] border border-orange-500/15 rounded-xl px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
                       placeholder="Sharma"
                     />
                   </div>
@@ -397,7 +397,7 @@ const SecureIdRegistration = () => {
                       name="gender"
                       value={formData.gender}
                       onChange={handleInputChange}
-                      className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
+                      className="w-full bg-[#111318] border border-orange-500/15 rounded-xl px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
                     >
                       <option value="">Select</option>
                       <option value="male">Male</option>
@@ -414,7 +414,7 @@ const SecureIdRegistration = () => {
                       name="dob"
                       value={formData.dob}
                       onChange={handleInputChange}
-                      className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
+                      className="w-full bg-[#111318] border border-orange-500/15 rounded-xl px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -428,7 +428,7 @@ const SecureIdRegistration = () => {
                   <label className="block text-sm font-medium text-gray-400 mb-2">
                     Aadhaar Document (PDF/Image)
                   </label>
-                  <div className="border-2 border-dashed border-gray-600 rounded-xl p-6 text-center hover:border-indigo-500 transition-colors">
+                  <div className="border-2 border-dashed border-orange-500/15 rounded-xl p-6 text-center hover:border-orange-500 transition-colors">
                     <input
                       type="file"
                       accept=".pdf,.jpg,.jpeg,.png"
@@ -453,7 +453,7 @@ const SecureIdRegistration = () => {
                     Profile Photo
                   </label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="border-2 border-dashed border-gray-600 rounded-xl p-6 text-center hover:border-indigo-500 transition-colors">
+                    <div className="border-2 border-dashed border-orange-500/15 rounded-xl p-6 text-center hover:border-orange-500 transition-colors">
                       <input
                         type="file"
                         accept="image/*"
@@ -471,7 +471,7 @@ const SecureIdRegistration = () => {
                         )}
                       </label>
                     </div>
-                    <div className="bg-gray-700/50 rounded-xl flex items-center justify-center p-4 border-2 border-gray-600">
+                    <div className="bg-[#111318] rounded-xl flex items-center justify-center p-4 border-2 border-orange-500/15">
                       {formData.photoFile ? (
                         <img
                           src={URL.createObjectURL(formData.photoFile)}
@@ -502,7 +502,7 @@ const SecureIdRegistration = () => {
                     name="state"
                     value={formData.state}
                     onChange={handleStateChange}
-                    className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
+                    className="w-full bg-[#111318] border border-orange-500/15 rounded-xl px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
                   >
                     <option value="">Select State</option>
                     {Object.keys(stateCities).map((s) => (
@@ -520,7 +520,7 @@ const SecureIdRegistration = () => {
                       value={formData.city}
                       onChange={handleInputChange}
                       disabled={!formData.state}
-                      className={`w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none ${
+                      className={`w-full bg-[#111318] border border-orange-500/15 rounded-xl px-4 py-3 text-white focus:border-orange-500 focus:outline-none ${
                         !formData.state ? 'opacity-50 cursor-not-allowed' : ''
                       }`}
                     >
@@ -544,7 +544,7 @@ const SecureIdRegistration = () => {
                           setFormData(prev => ({ ...prev, pincode: value }));
                         }
                       }}
-                      className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
+                      className="w-full bg-[#111318] border border-orange-500/15 rounded-xl px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
                       placeholder="400001"
                       maxLength="6"
                       inputMode="numeric"
@@ -561,7 +561,7 @@ const SecureIdRegistration = () => {
                     name="address"
                     value={formData.address}
                     onChange={handleInputChange}
-                    className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
+                    className="w-full bg-[#111318] border border-orange-500/15 rounded-xl px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
                     placeholder="123, MG Road, Near Central Mall"
                   />
                 </div>
@@ -580,7 +580,7 @@ const SecureIdRegistration = () => {
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
+                    className="w-full bg-[#111318] border border-orange-500/15 rounded-xl px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
                     placeholder="rahul@example.com"
                   />
                 </div>
@@ -591,7 +591,7 @@ const SecureIdRegistration = () => {
                     Phone Number
                   </label>
                   <div className="flex">
-                    <div className="flex items-center justify-center bg-gray-700/50 border border-r-0 border-gray-600 rounded-l-xl px-4 py-3 text-white">
+                    <div className="flex items-center justify-center bg-[#111318] border border-r-0 border-orange-500/15 rounded-l-xl px-4 py-3 text-white">
                       <span className="text-gray-300">+91</span>
                     </div>
                     <input
@@ -604,7 +604,7 @@ const SecureIdRegistration = () => {
                           setFormData(prev => ({ ...prev, phone: value }));
                         }
                       }}
-                      className="w-full bg-gray-700/50 border border-gray-600 rounded-r-xl px-4 py-3 text-white focus:border-indigo-500 focus:outline-none"
+                      className="w-full bg-[#111318] border border-orange-500/15 rounded-r-xl px-4 py-3 text-white focus:border-orange-500 focus:outline-none"
                       placeholder="98765 43210"
                       maxLength="10"
                       inputMode="numeric"
@@ -624,10 +624,10 @@ const SecureIdRegistration = () => {
                       name="password"
                       value={formData.password}
                       onChange={handleInputChange}
-                      className={`w-full bg-gray-700/50 border rounded-xl px-4 py-3 text-white focus:outline-none pr-12 ${
+                      className={`w-full bg-[#111318] border rounded-xl px-4 py-3 text-white focus:outline-none pr-12 ${
                         formData.password && formData.password.length < 8
                           ? 'border-red-500 focus:border-red-500'
-                          : 'border-gray-600 focus:border-indigo-500'
+                          : 'border-orange-500/15 focus:border-orange-500'
                       }`}
                       placeholder="Min 8 characters"
                     />
@@ -658,12 +658,12 @@ const SecureIdRegistration = () => {
                       name="confirmPassword"
                       value={formData.confirmPassword}
                       onChange={handleInputChange}
-                      className={`w-full bg-gray-700/50 border rounded-xl px-4 py-3 text-white focus:outline-none pr-12 ${
+                      className={`w-full bg-[#111318] border rounded-xl px-4 py-3 text-white focus:outline-none pr-12 ${
                         formData.confirmPassword && formData.confirmPassword !== formData.password
                           ? 'border-red-500 focus:border-red-500'
                           : formData.confirmPassword && formData.confirmPassword === formData.password
                           ? 'border-green-500 focus:border-green-500'
-                          : 'border-gray-600 focus:border-indigo-500'
+                          : 'border-orange-500/15 focus:border-orange-500'
                       }`}
                       placeholder="Re-enter your password"
                     />
@@ -692,9 +692,9 @@ const SecureIdRegistration = () => {
                 <h3 className="text-2xl font-bold text-white mb-2">Registration Complete!</h3>
                 <p className="text-gray-400 mb-6">
                   {formData.firstName || 'User'} {formData.lastName} has been registered as{' '}
-                  <span className="font-semibold text-indigo-400 capitalize">{role}</span>
+                  <span className="font-semibold text-orange-500 capitalize">{role}</span>
                 </p>
-                <div className="bg-gray-700/50 rounded-xl p-4 text-left space-y-2">
+                <div className="bg-[#111318] rounded-xl p-4 text-left space-y-2">
                   {formData.email && (
                     <p className="text-sm text-gray-300">
                       <span className="text-gray-400">Email:</span> {formData.email}
@@ -726,7 +726,7 @@ const SecureIdRegistration = () => {
             <div className="flex gap-4 mt-8">
               <button
                 onClick={handleBack}
-                className="flex-1 px-6 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white font-medium hover:bg-gray-700 transition-colors"
+                className="flex-1 px-6 py-3 bg-[#111318] border border-orange-500/15 rounded-xl text-white font-medium hover:bg-gray-700 transition-colors"
               >
                 ← Back
               </button>
@@ -734,8 +734,8 @@ const SecureIdRegistration = () => {
                 onClick={step === 4 ? handleSubmit : handleNext}
                 className={`flex-1 px-6 py-3 rounded-xl text-white font-medium transition-all ${
                   role === 'landOwner'
-                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700'
-                    : 'bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700'
+                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700'
+                    : 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-indigo-700'
                 }`}
               >
                 {step === 4 ? 'Complete Registration' : 'Continue →'}
@@ -747,7 +747,7 @@ const SecureIdRegistration = () => {
           {step === 1 && (
             <button
               onClick={() => setStep(2)}
-              className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-indigo-500 to-pink-500 rounded-xl text-white font-medium hover:from-indigo-600 hover:to-pink-600 transition-all"
+              className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl text-white font-medium hover:from-orange-600 hover:to-orange-700 transition-all"
             >
               Next: Personal Details →
             </button>
@@ -757,7 +757,7 @@ const SecureIdRegistration = () => {
         {/* Login Link */}
         <p className="text-center text-gray-400 text-sm mt-6">
           Already have an account?{' '}
-          <button onClick={() => navigate('/auth/login')} className="text-indigo-400 hover:underline">
+          <button onClick={() => navigate('/auth/login')} className="text-orange-500 hover:underline">
             Sign In
           </button>
         </p>

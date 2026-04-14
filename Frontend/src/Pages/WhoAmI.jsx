@@ -1,220 +1,103 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 
-const WhoAmI = ({ onRoleSelect, onNavigateToSignIn }) => {
-  const [selectedRole, setSelectedRole] = useState(null);
-  const [toast, setToast] = useState({ show: false, message: "" });
+const roles = [
+  { key: "driver", icon: "🚗", label: "I'm a Driver", sub: "Find & book parking near my destination", badge: "🔍 Browse & Book" },
+  { key: "owner", icon: "🏠", label: "I'm a Land Owner", sub: "Earn money by listing unused land", badge: "💰 List & Earn" },
+];
 
-  // Custom cursor effect
-  useEffect(() => {
-    const cur = document.getElementById("cur");
-    const curR = document.getElementById("cur-r");
-    if (!cur || !curR) return;
+export default function WhoAmI({ onRoleSelect, onNavigateToSignIn }) {
+  const [selected, setSelected] = useState(null);
+  const [toast, setToast] = useState("");
 
-    let mx = 0,
-      my = 0,
-      rx = 0,
-      ry = 0;
-
-    const onMouseMove = (e) => {
-      mx = e.clientX;
-      my = e.clientY;
-      cur.style.left = mx + "px";
-      cur.style.top = my + "px";
-    };
-
-    window.addEventListener("mousemove", onMouseMove);
-
-    let animationFrame;
-    const animate = () => {
-      rx += (mx - rx) * 0.13;
-      ry += (my - ry) * 0.13;
-      curR.style.left = rx + "px";
-      curR.style.top = ry + "px";
-      animationFrame = requestAnimationFrame(animate);
-    };
-    animate();
-
-    const interactiveElements = document.querySelectorAll(
-      "button, a, .role-card, input, .checkbox-custom"
-    );
-    const addHover = () => document.body.classList.add("hov");
-    const removeHover = () => document.body.classList.remove("hov");
-
-    interactiveElements.forEach((el) => {
-      el.addEventListener("mouseenter", addHover);
-      el.addEventListener("mouseleave", removeHover);
-    });
-
-    return () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      cancelAnimationFrame(animationFrame);
-      interactiveElements.forEach((el) => {
-        el.removeEventListener("mouseenter", addHover);
-        el.removeEventListener("mouseleave", removeHover);
-      });
-    };
-  }, []);
-
-  const showToast = (message) => {
-    setToast({ show: true, message });
-    setTimeout(() => setToast({ show: false, message: "" }), 3000);
-  };
-
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
   const handleContinue = () => {
-    if (!selectedRole) {
-      showToast("Please select a role");
-      return;
-    }
-    onRoleSelect(selectedRole);
+    if (!selected) { showToast("Please select your role to continue"); return; }
+    onRoleSelect(selected);
   };
 
   return (
-    <>
-      {/* Custom Cursor Elements */}
-      <div
-        id="cur"
-        className="fixed w-2.5 h-2.5 bg-orange-500 rounded-full pointer-events-none z-[9999] mix-blend-difference"
-        style={{ transform: "translate(-50%, -50%)" }}
-      />
-      <div
-        id="cur-r"
-        className="fixed w-9 h-9 border border-orange-500/35 rounded-full pointer-events-none z-[9998]"
-        style={{ transform: "translate(-50%, -50%)" }}
-      />
+    <div style={{ minHeight: "100vh", background: "#080808", fontFamily: "'DM Sans', sans-serif", color: "#e8e4dc", position: "relative", overflow: "hidden" }}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Bebas+Neue&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet" />
 
-      <div className="relative z-10 min-h-screen flex flex-col bg-black text-gray-200">
-        <nav className="flex items-center justify-between px-6 md:px-12 py-5 border-b border-white/10">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 flex items-center justify-center text-white font-bold">
-              🅿
-            </div>
-            <span className="font-['Bebas_Neue'] text-2xl tracking-wider">
-              ParkEase
-            </span>
+      {/* Grid Background */}
+      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, backgroundImage: "linear-gradient(rgba(249,115,22,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(249,115,22,0.04) 1px, transparent 1px)", backgroundSize: "60px 60px", maskImage: "radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%)" }} />
+
+      {/* Noise */}
+      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 1, opacity: 0.03, backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")" }} />
+
+      {/* Navbar */}
+      <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 48px", borderBottom: "1px solid rgba(249,115,22,0.1)", background: "rgba(8,8,8,0.85)", backdropFilter: "blur(20px)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, #f97316, #ea580c)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, boxShadow: "0 0 20px rgba(249,115,22,0.4)" }}>🅿</div>
+          <span style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 22, letterSpacing: "2px", color: "#e8e4dc" }}>ParkEase</span>
+        </div>
+        {/* Step dots */}
+        <div style={{ display: "flex", gap: 6 }}>
+          {[0, 1, 2].map(i => <div key={i} style={{ width: 28, height: 4, borderRadius: 4, background: i === 0 ? "#f97316" : "rgba(255,255,255,0.08)" }} />)}
+        </div>
+        <button onClick={onNavigateToSignIn} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.08)", color: "#666", borderRadius: 8, padding: "7px 16px", fontSize: 13, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 600, transition: "all 0.2s" }}>
+          Back
+        </button>
+      </nav>
+
+      {/* Main Content */}
+      <div style={{ position: "relative", zIndex: 10, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "100px 20px 40px" }}>
+        <div style={{ width: "100%", maxWidth: 580 }}>
+
+          {/* Eyebrow */}
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.2)", borderRadius: 100, padding: "6px 16px", fontSize: 11, fontWeight: 600, letterSpacing: "2px", color: "#f97316", textTransform: "uppercase", marginBottom: 24 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#f97316", display: "inline-block" }} />
+            Step 1 of 3 — Choose Your Role
           </div>
-          <div className="flex gap-2">
-            <div className="w-7 h-1.5 rounded-full bg-orange-500"></div>
-            <div className="w-7 h-1.5 rounded-full bg-white/10"></div>
-            <div className="w-7 h-1.5 rounded-full bg-white/10"></div>
+
+          <h1 style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 64, letterSpacing: "1px", color: "#e8e4dc", lineHeight: 0.95, marginBottom: 14 }}>
+            How Will You <span style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", color: "#f97316" }}>Use</span>
+            <br />ParkEase?
+          </h1>
+          <p style={{ fontSize: 15, color: "#666", marginBottom: 32, lineHeight: 1.6 }}>
+            Tell us who you are so we can personalise your experience.
+          </p>
+
+          {/* Role Cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 28 }}>
+            {roles.map(r => (
+              <button key={r.key} onClick={() => setSelected(r.key)}
+                style={{ padding: "24px 20px", borderRadius: 16, border: selected === r.key ? "1px solid rgba(249,115,22,0.5)" : "1px solid rgba(255,255,255,0.06)", background: selected === r.key ? "rgba(249,115,22,0.07)" : "rgba(255,255,255,0.02)", cursor: "pointer", textAlign: "left", transition: "all 0.2s", position: "relative", boxShadow: selected === r.key ? "0 8px 32px rgba(249,115,22,0.12)" : "none" }}>
+                {/* Checkmark */}
+                <div style={{ position: "absolute", top: 12, right: 12, width: 22, height: 22, borderRadius: "50%", background: selected === r.key ? "#f97316" : "transparent", border: selected === r.key ? "none" : "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff", fontWeight: 900, transition: "all 0.2s" }}>
+                  {selected === r.key ? "✓" : ""}
+                </div>
+                <div style={{ fontSize: 38, marginBottom: 12 }}>{r.icon}</div>
+                <div style={{ fontFamily: "'Bebas Neue', cursive", fontSize: 22, letterSpacing: "1px", color: selected === r.key ? "#f97316" : "#e8e4dc", marginBottom: 6 }}>{r.label}</div>
+                <p style={{ fontSize: 12, color: "#666", marginBottom: 12, lineHeight: 1.5, fontWeight: 400 }}>{r.sub}</p>
+                <div style={{ display: "inline-flex", padding: "4px 12px", borderRadius: 20, background: selected === r.key ? "rgba(249,115,22,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${selected === r.key ? "rgba(249,115,22,0.3)" : "rgba(255,255,255,0.06)"}`, fontSize: 11, color: selected === r.key ? "#f97316" : "#555", fontWeight: 600 }}>
+                  {r.badge}
+                </div>
+              </button>
+            ))}
           </div>
-          <button className="text-gray-500 text-sm border border-white/10 px-4 py-1.5 rounded-md hover:text-white transition-colors">
-            Back
+
+          {/* Continue */}
+          <button onClick={handleContinue}
+            style={{ width: "100%", padding: "15px", borderRadius: 12, border: "none", background: selected ? "linear-gradient(135deg, #f97316, #ea580c)" : "rgba(255,255,255,0.04)", color: selected ? "#fff" : "#444", fontWeight: 700, fontSize: 16, cursor: selected ? "pointer" : "not-allowed", boxShadow: selected ? "0 4px 20px rgba(249,115,22,0.35)" : "none", transition: "all 0.2s", fontFamily: "'DM Sans', sans-serif" }}>
+            Continue →
           </button>
-        </nav>
 
-        <div className="flex-1 flex items-center justify-center p-6">
-          <div className="max-w-2xl w-full">
-            <p className="text-orange-500 text-xs tracking-wider mb-2">
-              STEP 1 OF 3 — CHOOSE YOUR ROLE
-            </p>
-            <h1 className="font-['Bebas_Neue'] text-5xl md:text-7xl leading-none">
-              How Will You{" "}
-              <span className="text-orange-500 italic font-['Instrument_Serif']">
-                Use
-              </span>
-              <br />
-              ParkEase?
-            </h1>
-            <p className="text-gray-500 mt-2 mb-6">
-              Tell us who you are so we can personalise your experience
-              perfectly.
-            </p>
-
-            <div className="grid md:grid-cols-2 gap-4 mb-8">
-              {/* Driver Card */}
-              <div
-                className={`p-6 rounded-2xl cursor-pointer transition-all relative border-2 ${
-                  selectedRole === "driver"
-                    ? "border-orange-500 bg-orange-500/5"
-                    : "border-white/10 bg-gray-900/50 hover:border-orange-500/30"
-                }`}
-                onClick={() => setSelectedRole("driver")}
-              >
-                <div
-                  className={`absolute top-3 right-3 w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold transition-opacity ${
-                    selectedRole === "driver" ? "opacity-100" : "opacity-0"
-                  }`}
-                >
-                  ✓
-                </div>
-                <span className="text-4xl mb-3 block">🚗</span>
-                <div className="font-['Bebas_Neue'] text-2xl">
-                  I'm a Driver
-                </div>
-                <p className="text-gray-500 text-sm">
-                  Find and book parking near my destination quickly.
-                </p>
-                <div className="mt-3 inline-block bg-orange-500/10 border border-orange-500/20 rounded-full px-2 py-1 text-xs text-orange-500">
-                  🔍 Browse & Book
-                </div>
-              </div>
-
-              {/* Owner Card */}
-              <div
-                className={`p-6 rounded-2xl cursor-pointer transition-all relative border-2 ${
-                  selectedRole === "owner"
-                    ? "border-orange-500 bg-orange-500/5"
-                    : "border-white/10 bg-gray-900/50 hover:border-orange-500/30"
-                }`}
-                onClick={() => setSelectedRole("owner")}
-              >
-                <div
-                  className={`absolute top-3 right-3 w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold transition-opacity ${
-                    selectedRole === "owner" ? "opacity-100" : "opacity-0"
-                  }`}
-                >
-                  ✓
-                </div>
-                <span className="text-4xl mb-3 block">🏠</span>
-                <div className="font-['Bebas_Neue'] text-2xl">
-                  I'm a Land Owner
-                </div>
-                <p className="text-gray-500 text-sm">
-                  Earn money by listing unused land or driveway.
-                </p>
-                <div className="mt-3 inline-block bg-orange-500/10 border border-orange-500/20 rounded-full px-2 py-1 text-xs text-orange-500">
-                  💰 List & Earn
-                </div>
-              </div>
-            </div>
-
-            <button
-              className="w-full md:w-auto px-8 py-3 rounded-xl text-white font-bold bg-gradient-to-r from-orange-500 to-orange-600 hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={!selectedRole}
-              onClick={handleContinue}
-            >
-              Continue →
+          <p style={{ textAlign: "center", fontSize: 13, color: "#555", marginTop: 18 }}>
+            Already have an account?{" "}
+            <button onClick={onNavigateToSignIn} style={{ background: "none", border: "none", color: "#f97316", cursor: "pointer", fontWeight: 600, fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>
+              Sign In
             </button>
-
-            <p className="text-gray-500 text-sm mt-4">
-              Already have an account?{" "}
-              <a
-                href="#"
-                className="text-orange-500 hover:underline"
-                onClick={(e) => {
-                  e.preventDefault();
-                  onNavigateToSignIn();
-                }}
-              >
-                Sign In
-              </a>
-            </p>
-          </div>
+          </p>
         </div>
       </div>
 
-      {/* Toast Notification */}
-      {toast.show && (
-        <div className="fixed bottom-6 right-6 bg-gray-900 border-l-4 border-orange-500 rounded-xl shadow-2xl p-4 flex items-center gap-3 z-50 animate-slide-up">
-          <span className="text-2xl">✅</span>
-          <div>
-            <p className="font-semibold text-white">ParkEase</p>
-            <p className="text-sm text-gray-300">{toast.message}</p>
-          </div>
+      {/* Toast */}
+      {toast && (
+        <div style={{ position: "fixed", bottom: 24, right: 24, background: "rgba(12,10,8,0.95)", border: "1px solid rgba(249,115,22,0.3)", borderLeft: "3px solid #f97316", borderRadius: 12, padding: "14px 18px", color: "#e8e4dc", fontSize: 13, fontWeight: 600, zIndex: 1000, backdropFilter: "blur(12px)" }}>
+          ⚠ {toast}
         </div>
       )}
-    </>
+    </div>
   );
-};
-
-export default WhoAmI;
+}
